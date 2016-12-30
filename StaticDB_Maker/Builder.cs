@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -91,11 +92,17 @@ namespace StaticDB_Maker
 
 		public Printer(string target_file_path)
 		{
-			m_filepath = target_file_path;
+			string dir = Path.GetDirectoryName(target_file_path);
+			DirectoryInfo di = new DirectoryInfo(dir);
+			if (di.Exists == false)
+				di.Create();
 			FileInfo fi = new FileInfo(target_file_path);
 			if (fi.Exists == false)
-				File.WriteAllText(m_filepath, "", Encoding.UTF8);
+				File.WriteAllText(target_file_path, "", Encoding.UTF8);
+			m_filepath = target_file_path;
 		}
+
+		public string FilePath { get{ return m_filepath; } }
 
 		public void Print(string str)
 		{
@@ -182,22 +189,54 @@ namespace StaticDB_Maker
 			fbs.Print("    Data : [{0}];", m_table.m_name);
 			fbs.Print("}");
 			fbs.Print("");
-			fbs.Print("root_table {0}_Table;", m_table.m_name);
+			fbs.Print("root_type {0}_Table;", m_table.m_name);
 			fbs.Flush();
 		}
 
 		public void GenBin()
 		{
-			//Printer json = new Printer("");
-			//json.Print("{");
-			//for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
-			//	Record record = m_table.m_records[i];
-			//	foreach (var cell in record) {
-					
-			//	}
-			//	string line;
-			//}
-			//json.Print("}");
+			Printer json = new Printer(Path.Combine(Config.Temp_Path, m_table.m_name + ".json"));
+			json.Print("{Data:[");
+			for (int i=Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
+				Record record = m_table.m_records[i];
+				string line = " { " + Config.ColName_ID_INT + ':' + record.ID_INT + ", ";
+				foreach (var column in m_table.m_schema.m_columns) {
+					if (column.m_type == ColumnType.ID)
+						continue;
+					line += column.m_name + ':';
+					bool isStr = column.LangType.fbs == "string";
+					if (isStr)
+						line += '"';
+					line += record[column.m_columnNumber].ParsedData.ToString();
+					if (isStr)
+						line += '"';
+					line += ", ";
+				}
+				line += "},";
+				json.Print(line);
+			}
+			json.Print("]}");
+			json.Flush();
+
+			ProcessStartInfo si = new ProcessStartInfo();
+			si.UseShellExecute = false;
+			si.FileName = Config.flatc_Path;
+			si.WorkingDirectory = Config.Out_FBS_Path;
+			si.Arguments = String.Format("--binary {0} \"{1}\"", m_table.m_name+".fbs", json.FilePath);
+			si.RedirectStandardOutput = true;
+			si.RedirectStandardError = true;
+			var flatc = Process.Start(si);
+			flatc.WaitForExit();
+
+			string stdout = "";
+			while (flatc.StandardOutput.Peek() >= 0)
+				stdout += flatc.StandardOutput.ReadLine() + '\n';
+			string stderr = "";
+			while (flatc.StandardError.Peek() >= 0)
+				stderr += flatc.StandardError.ReadLine() + '\n';
+
+			Console.WriteLine("code:{0}\nstdout:{1}\nstderr:{2}\n",
+				flatc.ExitCode, stdout, stderr);
 		}
 
 		public void GenProgramCode()

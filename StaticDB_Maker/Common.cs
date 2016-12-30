@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,10 +17,12 @@ namespace StaticDB_Maker
 		public static readonly string ColName_ID_STR = "ID_STR";
 
 		public static string DB_Path = "";
+		public static string Temp_Path = Path.Combine(Path.GetTempPath(), "StaticDB", (new Random()).Next().ToString());
 		public static string Out_FBS_Path = "";
 		public static string Out_CPP_Path = "";
 		public static string Out_CS_Path = "";
 		public static string Out_JS_Path = "";
+		public static string flatc_Path = "";
 		public static HashSet<string> All_Table = new HashSet<string>();
 		public static HashSet<string> Target_Table = new HashSet<string>();
 
