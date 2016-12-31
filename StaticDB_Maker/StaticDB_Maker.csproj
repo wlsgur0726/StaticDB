@@ -67,6 +67,9 @@
   <ItemGroup>
     <Compile Include="Builder.cs" />
     <Compile Include="Common.cs" />
+    <Compile Include="Generator_CPP.cs" />
+    <Compile Include="Generator_CS.cs" />
+    <Compile Include="Generator_JS.cs" />
     <Compile Include="Verifier.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

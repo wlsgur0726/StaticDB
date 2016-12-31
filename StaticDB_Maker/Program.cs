@@ -26,13 +26,14 @@ namespace StaticDB_Maker
 						Console.WriteLine("warning!!! ignore table : " + err);
 						continue;
 					}
-					Config.All_Table.Add(name);
+					Config.TableID.Add(name, Config.TableID.Count+1);
 					Config.Target_Table.Add(name);
 				}
 
 				Config.Namespace = "Test";
-				Config.Temp_Path = Path.Combine(Config.DB_Path, "temp");
 				Config.Out_FBS_Path = Path.Combine(Config.DB_Path, "gen");
+				Config.Out_BIN_Path = Path.Combine(Config.DB_Path, "bin");
+				Config.Out_CPP_Path = Path.Combine(Config.DB_Path, "cpp");
 				Config.flatc_Path = Path.Combine(@"D:\windows\kjh\workspace\flatbuffertest", "flatc.exe");
 				foreach (var table in Config.Target_Table) {
 					var builder = Builder.s_instance.FindBuilder(table);

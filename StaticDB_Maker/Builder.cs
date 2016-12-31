@@ -14,73 +14,152 @@ namespace StaticDB_Maker
 	}
 
 
-	public struct LangType
-	{
-		public string fbs;
-		public string cpp;
-		public string cs;
-		public string js;
 
-		public static LangType Unknown()
+	public class TypeMapper
+	{
+		public enum Type : int
 		{
-			LangType t;
-			t.fbs = "<unknown>";
-			t.cpp = "<unknown>";
-			t.cs = "<unknown>";
-			t.js = "<unknown>";
-			return t;
+			CPP = 0,
+			CS,
+			JS,
+			_End_
 		}
 
-		private static Dictionary<string, LangType> s_fbs2langType = null;
-		public static LangType byFBS(string fbs)
+		public string fbs;
+		public Dictionary<Type, string> types = new Dictionary<Type, string>();
+
+		public TypeMapper(string fbs = "<unknown>")
+		{
+			this.fbs = fbs;
+			for (Type i=0; i<Type._End_; ++i)
+				types.Add(i, "<unknown>");
+		}
+
+		private static Dictionary<string, TypeMapper> s_fbs2langType = null;
+		public static TypeMapper byFBS(string fbs)
 		{
 			if (s_fbs2langType == null) {
-				var map = new Dictionary<string, LangType>();
-				{	LangType t;
-					t.fbs = "bool"; t.cpp = "bool"; t.cs = "bool"; t.js = "var";
+				var map = new Dictionary<string, TypeMapper>();
+				{	TypeMapper t = new TypeMapper("bool");
+					t.types[Type.CPP] = "bool";
+					t.types[Type.CS] = "bool";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "byte"; t.cpp = "int8_t"; t.cs = "sbyte"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("byte");
+					t.types[Type.CPP] = "int8_t";
+					t.types[Type.CS] = "sbyte";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "ubyte"; t.cpp = "uint8_t"; t.cs = "byte"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("ubyte");
+					t.types[Type.CPP] = "uint8_t";
+					t.types[Type.CS] = "byte";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "short"; t.cpp = "int16_t"; t.cs = "short"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("short");
+					t.types[Type.CPP] = "int16_t";
+					t.types[Type.CS] = "short";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "ushort"; t.cpp = "uint16_t"; t.cs = "ushort"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("ushort");
+					t.types[Type.CPP] = "uint16_t";
+					t.types[Type.CS] = "ushort";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "int"; t.cpp = "int32_t"; t.cs = "int"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("int");
+					t.types[Type.CPP] = "int32_t";
+					t.types[Type.CS] = "int";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "uint"; t.cpp = "uint32_t"; t.cs = "uint"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("uint");
+					t.types[Type.CPP] = "uint32_t";
+					t.types[Type.CS] = "uint";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "long"; t.cpp = "int64_t"; t.cs = "long"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("long");
+					t.types[Type.CPP] = "int64_t";
+					t.types[Type.CS] = "long";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "ulong"; t.cpp = "uint64_t"; t.cs = "ulong"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("ulong");
+					t.types[Type.CPP] = "uint64_t";
+					t.types[Type.CS] = "ulong";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "float"; t.cpp = "float"; t.cs = "float"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("float");
+					t.types[Type.CPP] = "float";
+					t.types[Type.CS] = "float";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "double"; t.cpp = "double"; t.cs = "double"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("double");
+					t.types[Type.CPP] = "double";
+					t.types[Type.CS] = "double";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
-				{	LangType t;
-					t.fbs = "string"; t.cpp = "string"; t.cs = "string"; t.js = "var";
+				{	TypeMapper t = new TypeMapper("string");
+					t.types[Type.CPP] = "string";
+					t.types[Type.CS] = "string";
+					t.types[Type.JS] = "var";
 					map.Add(t.fbs, t);	}
 				lock (Common.s_lock) {
 					if (s_fbs2langType == null)
 						s_fbs2langType = map;
 				}
 			}
-			LangType ret;
+			TypeMapper ret;
 			if (s_fbs2langType.TryGetValue(fbs, out ret))
 				return ret;
-			return Unknown();
+			return new TypeMapper();
+		}
+
+		public static TypeMapper byEnum(string enum_name)
+		{
+			TypeMapper ret = new TypeMapper(enum_name);
+			ret.types[Type.CPP] = enum_name;
+			ret.types[Type.CS] = enum_name;
+			ret.types[Type.JS] = "var";
+			return ret;
+		}
+
+		static Dictionary<Type, List<string>> s_outputInfo = null;
+		public static List<string> OutputFiles(Type t)
+		{
+			if (s_outputInfo == null) {
+				Dictionary<Type, List<string>> map = new Dictionary<Type, List<string>>();
+				for (Type i=0; i<Type._End_; ++i)
+					map.Add(i, new List<string>());
+				map[Type.CPP].Add("{0}_generated.h");
+				map[Type.CS].Add("{0}.cs");
+				map[Type.JS].Add("{0}_generated.js");
+				lock (Common.s_lock) {
+					if (s_outputInfo == null)
+						s_outputInfo = map;
+				}
+			}
+			List<string> ret;
+			if (s_outputInfo.TryGetValue(t, out ret))
+				return ret;
+			return null;
+		}
+
+		static Dictionary<Type, string> s_flatcArgs = null;
+		public static string Arguments(Type t)
+		{
+			if (s_flatcArgs == null) {
+				Dictionary<Type, string> map = new Dictionary<Type, string>();
+				for (Type i = 0; i<Type._End_; ++i)
+					map.Add(i, "");
+				map[Type.CPP] = "--cpp --scoped-enums";
+				map[Type.CS] = "--csharp --gen-onefile";
+				map[Type.JS] = "--js";
+				lock (Common.s_lock) {
+					if (s_flatcArgs == null)
+						s_flatcArgs = map;
+				}
+			}
+			string ret;
+			if (s_flatcArgs.TryGetValue(t, out ret))
+				return ret;
+			return null;
 		}
 	}
 
@@ -90,15 +169,17 @@ namespace StaticDB_Maker
 		string m_filepath = "";
 		string m_buffer = "";
 
-		public Printer(string target_file_path)
+		public static void CreateDirectory(string dir)
 		{
-			string dir = Path.GetDirectoryName(target_file_path);
 			DirectoryInfo di = new DirectoryInfo(dir);
 			if (di.Exists == false)
 				di.Create();
-			FileInfo fi = new FileInfo(target_file_path);
-			if (fi.Exists == false)
-				File.WriteAllText(target_file_path, "", Encoding.UTF8);
+		}
+
+		public Printer(string target_file_path)
+		{
+			string dir = Path.GetDirectoryName(target_file_path);
+			CreateDirectory(dir);
 			m_filepath = target_file_path;
 		}
 
@@ -114,15 +195,77 @@ namespace StaticDB_Maker
 			m_buffer += String.Format(format, args) + '\n';
 		}
 
+		public void Reset(string str = "")
+		{
+			m_buffer = str;
+		}
+
 		public void Flush()
 		{
-			string org = File.ReadAllText(m_filepath, Encoding.UTF8);
-			if (org == m_buffer)
-				return;
-			File.WriteAllText(m_filepath, m_buffer, Encoding.UTF8);
-			m_buffer = "";
+			string org = "";
+			try {
+				org = File.ReadAllText(m_filepath, Encoding.UTF8);
+			}
+			catch (Exception) {
+			}
+			finally {
+				if (org != m_buffer)
+					File.WriteAllText(m_filepath, m_buffer, Encoding.UTF8);
+				Reset();
+			}
 		}
 	}
+
+
+	class Flatc
+	{
+		public static void Exec(ProcessStartInfo psi, string table)
+		{
+			psi.FileName = Config.flatc_Path;
+			var flatc = Process.Start(psi);
+			flatc.WaitForExit();
+
+			string stdout = "";
+			while (flatc.StandardOutput.Peek() >= 0)
+				stdout += flatc.StandardOutput.ReadLine() + '\n';
+			if (flatc.ExitCode != 0)
+				throw new ParseError(table, 0, 0, String.Format("flatc error\n{0}", stdout));
+		}
+
+		public static void JsonToBin(string table)
+		{
+			ProcessStartInfo psi = Common.DefaultPSI();
+			psi.WorkingDirectory = Config.Out_BIN_Path;
+			psi.Arguments = String.Format("--binary \"{0}\" \"{1}\"",
+				Path.Combine(Config.Out_FBS_Path, table+".fbs"),
+				Path.Combine(Config.Temp_Path, table+".json"));
+
+			Printer.CreateDirectory(psi.WorkingDirectory);
+			Exec(psi, table);
+		}
+
+		public static void CompileFBS(string table, string outdir, TypeMapper.Type type)
+		{
+			Printer.CreateDirectory(outdir);
+			ProcessStartInfo psi = Common.DefaultPSI();
+			psi.WorkingDirectory = Config.Out_FBS_Path;
+			psi.Arguments = String.Format("{0} -o \"{1}\" {2}.fbs {2}_enum.fbs",
+				TypeMapper.Arguments(type), Config.Temp_Path, table);
+			Exec(psi, table);
+
+			var files = TypeMapper.OutputFiles(type);
+			string[] src = { table, table+"_enum" };
+			foreach (var fbs in src) {
+				foreach (var format in files) {
+					string filename = String.Format(format, fbs);
+					Printer flatc = new Printer(Path.Combine(outdir, filename));
+					flatc.Reset(File.ReadAllText(Path.Combine(Config.Temp_Path, filename), Encoding.UTF8));
+					flatc.Flush();
+				}
+			}
+		}
+	}
+
 
 	class TableBuilder
 	{
@@ -140,48 +283,52 @@ namespace StaticDB_Maker
 		{
 			string enum_fbs_filename = m_table.m_name + "_enum.fbs";
 			Printer fbs = new Printer(Path.Combine(Config.Out_FBS_Path, enum_fbs_filename));
+			fbs.Print("// {0}", Config.AutoGenComment);
 			fbs.Print("namespace {0};", Config.Namespace);
 			fbs.Print("");
-			foreach (var column in m_table.m_schema.m_columns) {
-				switch (column.m_type) {
-					case ColumnType.ID: {
-						Column_ID cast = (Column_ID)column;
-						if (cast.m_detailType != ColumnType.STR)
-							continue;
-						break;
-					}
-					case ColumnType.GROUP: {
-						Column_GROUP cast = (Column_GROUP)column;
-						if (cast.m_detailType.m_type != ColumnType.STR)
-							continue;
-						break;
-					}
-					default: {
-						continue;
-					}
-				}
-				int ID_INT_column = m_table.m_schema.FindColumn("ID_INT").m_columnNumber;
-				fbs.Print("enum {0}_{1} : uint", m_table.m_name, column.m_name);
+			fbs.Print("enum TableID_{0} : uint {{ Value = {1} }}", m_table.m_name, Config.TableID[m_table.m_name]);
+			fbs.Print("");
+			foreach (var it in m_table.m_enums) {
+				EnumInfo ei = it.Value;
+				fbs.Print("enum {0} : uint", ei.EnumName);
 				fbs.Print("{");
-				foreach (var it in m_table.m_records_byStr) {
-					var record = it.Value;
-					string en = record.ID_STR;
-					uint id = record.ID_INT;
-					fbs.Print("    {0} = {1},", en, id);
-				}
+				foreach (var en in ei.NumToName)
+					fbs.Print("    {0} = {1},", en.Value, en.Key);
 				fbs.Print("}");
 				fbs.Print("");
 			}
 			fbs.Flush();
 
 			fbs = new Printer(Path.Combine(Config.Out_FBS_Path, m_table.m_name + ".fbs"));
+			fbs.Print("// {0}", Config.AutoGenComment);
 			fbs.Print("include \"{0}\";", enum_fbs_filename);
+			foreach (var column in m_table.m_schema.m_columns) {
+				var ri = Common.GetRefInfo(column);
+				if (ri != null)
+					fbs.Print("include \"{0}_enum.fbs\";", ri.m_refTable);
+			}
 			fbs.Print("namespace {0};", Config.Namespace);
 			fbs.Print("");
 			fbs.Print("table {0}", m_table.m_name);
 			fbs.Print("{");
-			foreach (var column in m_table.m_schema.m_columns)
-				fbs.Print("    {0} : {1};", column.m_name, column.LangType.fbs);
+			foreach (var column in m_table.m_schema.m_columns) {
+				switch (column.m_type) {
+					case ColumnType.ID: {
+						Column_ID cast = (Column_ID)column;
+						if (cast.m_detailType == ColumnType.STR)
+							continue;
+						break;
+					}
+				}
+				string print = String.Format("    {0} : {1}", column.m_name, column.LangType.fbs);
+				EnumInfo ei;
+				if (EnumInfo.Enums.TryGetValue(column.LangType.fbs, out ei)) {
+					var first = ei.NumToName.First();
+					print += " = " + first.Value;
+				}
+				print += ';';
+				fbs.Print(print);
+			}
 			fbs.Print("}");
 			fbs.Print("");
 			fbs.Print("table {0}_Table", m_table.m_name);
@@ -217,37 +364,29 @@ namespace StaticDB_Maker
 			}
 			json.Print("]}");
 			json.Flush();
-
-			ProcessStartInfo si = new ProcessStartInfo();
-			si.UseShellExecute = false;
-			si.FileName = Config.flatc_Path;
-			si.WorkingDirectory = Config.Out_FBS_Path;
-			si.Arguments = String.Format("--binary {0} \"{1}\"", m_table.m_name+".fbs", json.FilePath);
-			si.RedirectStandardOutput = true;
-			si.RedirectStandardError = true;
-			var flatc = Process.Start(si);
-			flatc.WaitForExit();
-
-			string stdout = "";
-			while (flatc.StandardOutput.Peek() >= 0)
-				stdout += flatc.StandardOutput.ReadLine() + '\n';
-			string stderr = "";
-			while (flatc.StandardError.Peek() >= 0)
-				stderr += flatc.StandardError.ReadLine() + '\n';
-
-			Console.WriteLine("code:{0}\nstdout:{1}\nstderr:{2}\n",
-				flatc.ExitCode, stdout, stderr);
+			Flatc.JsonToBin(m_table.m_name);
 		}
 
 		public void GenProgramCode()
 		{
-
+			if (Config.Out_CPP_Path.Length > 0) {
+				Flatc.CompileFBS(m_table.m_name, Config.Out_CPP_Path, TypeMapper.Type.CPP);
+				Generator.GenCPP(m_table);
+			}
+			if (Config.Out_CS_Path.Length > 0) {
+				Flatc.CompileFBS(m_table.m_name, Config.Out_CS_Path, TypeMapper.Type.CS);
+				Generator.GenCS(m_table);
+			}
+			if (Config.Out_JS_Path.Length > 0) {
+				Flatc.CompileFBS(m_table.m_name, Config.Out_JS_Path, TypeMapper.Type.JS);
+				Generator.GenJS(m_table);
+			}
 		}
 
 		public bool Build()
 		{
 			try {
-				if (m_verifier.Verify(Table.State.Step6_VerifyComplete) == false)
+				if (m_verifier.Verify(Table.State.VerifyComplete) == false)
 					return false;
 				GenFBS();
 				GenBin();

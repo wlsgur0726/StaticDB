@@ -312,8 +312,15 @@ namespace StaticDB_Maker
 			m_verify.Add(new VerifyObject(Table.State.Step2_Complete_ID_Indexing, (Table table) =>
 			{
 				lock (table.m_lock) {
+					EnumInfo enum_ID = null;
 					Column_ID column_ID_INT = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_INT);
 					Column_ID column_ID_STR = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_STR);
+					if (column_ID_STR != null) {
+						enum_ID = new EnumInfo(table.m_name, "ID");
+						table.m_enums.Add(enum_ID.EnumName, enum_ID);
+						column_ID_INT.LangType = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
+					}
+
 					for (int row = Config.DataStartRow; row<=m_table.m_records.Count; ++row) {
 						// ID.INT
 						Record record = m_table.m_records[row - 1];
@@ -338,7 +345,7 @@ namespace StaticDB_Maker
 						table.m_records_byInt.Add(ID_INT, record);
 
 						// ID.STR
-						while (column_ID_STR != null) {
+						while (enum_ID != null) {
 							int col = column_ID_STR.m_columnNumber;
 							Cell cell = record[col];
 							if (cell.Source.Length == 0)
@@ -354,6 +361,7 @@ namespace StaticDB_Maker
 							}
 							record.ID_STR = str;
 							table.m_records_byStr.Add(str, record);
+							enum_ID.Add(str, ID_INT);
 							break;
 						}
 					}
@@ -428,8 +436,25 @@ namespace StaticDB_Maker
 				return success;
 			}));
 
-			// 검증 완료
-			m_verify.Add(new VerifyObject(Table.State.Step6_VerifyComplete, (Table table) =>
+			// Step6 - enum 매핑
+			m_verify.Add(new VerifyObject(Table.State.Step6_Complete_Enum_Mapping, (Table table) =>
+			{
+				foreach (var column in table.m_schema.m_columns) {
+					int col = column.m_columnNumber;
+					if (column.m_type==ColumnType.GROUP && ((Column_GROUP)column).m_detailType.m_type==ColumnType.STR) {
+						EnumInfo ei = new EnumInfo(table.m_name, column.m_name);
+						table.m_enums.Add(ei.EnumName, ei);
+						for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
+							Record record = m_table.m_records[i];
+							Cell cell = record[col];
+							ei.Add((string)cell.ParsedData.value);
+						}
+					}
+				}
+				return true;
+			}));
+
+			m_verify.Add(new VerifyObject(Table.State.VerifyComplete, (Table table) =>
 			{
 				return true;
 			}));
