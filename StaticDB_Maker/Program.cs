@@ -40,6 +40,7 @@ namespace StaticDB_Maker
 					if (builder.Build() == false)
 						Console.Error.WriteLine("build fail - " + table);
 				}
+				Generator.GenDBCode_CPP();
 			}
 			finally {
 				//(new DirectoryInfo(Config.Temp_Path)).Delete(true);

@@ -140,12 +140,6 @@
   <ItemGroup>
     <ClInclude Include="StaticDB.h" />
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="StaticDB.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

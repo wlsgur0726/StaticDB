@@ -331,12 +331,12 @@ namespace StaticDB_Maker
 			}
 			fbs.Print("}");
 			fbs.Print("");
-			fbs.Print("table {0}_Table", m_table.m_name);
+			fbs.Print("table {0}_Data", m_table.m_name);
 			fbs.Print("{");
 			fbs.Print("    Data : [{0}];", m_table.m_name);
 			fbs.Print("}");
 			fbs.Print("");
-			fbs.Print("root_type {0}_Table;", m_table.m_name);
+			fbs.Print("root_type {0}_Data;", m_table.m_name);
 			fbs.Flush();
 		}
 
@@ -371,15 +371,15 @@ namespace StaticDB_Maker
 		{
 			if (Config.Out_CPP_Path.Length > 0) {
 				Flatc.CompileFBS(m_table.m_name, Config.Out_CPP_Path, TypeMapper.Type.CPP);
-				Generator.GenCPP(m_table);
+				Generator.GenTableCode_CPP(m_table);
 			}
 			if (Config.Out_CS_Path.Length > 0) {
 				Flatc.CompileFBS(m_table.m_name, Config.Out_CS_Path, TypeMapper.Type.CS);
-				Generator.GenCS(m_table);
+				Generator.GenTableCode_CS(m_table);
 			}
 			if (Config.Out_JS_Path.Length > 0) {
 				Flatc.CompileFBS(m_table.m_name, Config.Out_JS_Path, TypeMapper.Type.JS);
-				Generator.GenJS(m_table);
+				Generator.GenTableCode_JS(m_table);
 			}
 		}
 
