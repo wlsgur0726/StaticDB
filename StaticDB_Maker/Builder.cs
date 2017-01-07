@@ -35,6 +35,14 @@ namespace StaticDB_Maker
 				types.Add(i, "<unknown>");
 		}
 
+		public bool IsEnum()
+		{
+			if (fbs == "<unknown>")
+				return false;
+			var t = byFBS(fbs);
+			return t.fbs == "<unknown>";
+		}
+
 		private static Dictionary<string, TypeMapper> s_fbs2langType = null;
 		public static TypeMapper byFBS(string fbs)
 		{
@@ -267,6 +275,7 @@ namespace StaticDB_Maker
 	}
 
 
+
 	class TableBuilder
 	{
 		object m_lock = new object();
@@ -279,6 +288,28 @@ namespace StaticDB_Maker
 			m_verifier = verifier;
 		}
 
+		public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column, string name);
+		public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
+		{
+			foreach (var column in table.m_schema.m_columns) {
+				string name;
+				switch (column.m_type) {
+					case ColumnType.ID: {
+						Column_ID cast = (Column_ID)column;
+						if (cast.m_detailType == ColumnType.STR)
+							continue;
+						name = "ID";
+						break;
+					}
+					default: {
+						name = column.m_name;
+						break;
+					}
+				}
+				f(column, name);
+			}
+		}
+
 		public void GenFBS()
 		{
 			string enum_fbs_filename = m_table.m_name + "_enum.fbs";
@@ -288,12 +319,20 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("enum TableID_{0} : uint {{ Value = {1} }}", m_table.m_name, Config.TableID[m_table.m_name]);
 			fbs.Print("");
+			fbs.Print("enum {0}_Column : uint", m_table.m_name);
+			fbs.Print("{");
+			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
+			{
+				fbs.Print("  {0},", name);
+			});
+			fbs.Print("}");
+			fbs.Print("");
 			foreach (var it in m_table.m_enums) {
 				EnumInfo ei = it.Value;
 				fbs.Print("enum {0} : uint", ei.EnumName);
 				fbs.Print("{");
 				foreach (var en in ei.NumToName)
-					fbs.Print("    {0} = {1},", en.Value, en.Key);
+					fbs.Print("  {0} = {1},", en.Value, en.Key);
 				fbs.Print("}");
 				fbs.Print("");
 			}
@@ -311,60 +350,27 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("table {0}", m_table.m_name);
 			fbs.Print("{");
-			foreach (var column in m_table.m_schema.m_columns) {
-				switch (column.m_type) {
-					case ColumnType.ID: {
-						Column_ID cast = (Column_ID)column;
-						if (cast.m_detailType == ColumnType.STR)
-							continue;
-						break;
-					}
-				}
-				string print = String.Format("    {0} : {1}", column.m_name, column.LangType.fbs);
+
+			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
+			{
+				string print = String.Format("  {0} : {1}", name, column.TypeInfo.fbs);
 				EnumInfo ei;
-				if (EnumInfo.Enums.TryGetValue(column.LangType.fbs, out ei)) {
+				if (EnumInfo.Enums.TryGetValue(column.TypeInfo.fbs, out ei)) {
 					var first = ei.NumToName.First();
 					print += " = " + first.Value;
 				}
 				print += ';';
 				fbs.Print(print);
-			}
+			});
 			fbs.Print("}");
 			fbs.Print("");
 			fbs.Print("table {0}_Data", m_table.m_name);
 			fbs.Print("{");
-			fbs.Print("    Data : [{0}];", m_table.m_name);
+			fbs.Print("  Data : [{0}];", m_table.m_name);
 			fbs.Print("}");
 			fbs.Print("");
 			fbs.Print("root_type {0}_Data;", m_table.m_name);
 			fbs.Flush();
-		}
-
-		public void GenBin()
-		{
-			Printer json = new Printer(Path.Combine(Config.Temp_Path, m_table.m_name + ".json"));
-			json.Print("{Data:[");
-			for (int i=Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
-				Record record = m_table.m_records[i];
-				string line = " { " + Config.ColName_ID_INT + ':' + record.ID_INT + ", ";
-				foreach (var column in m_table.m_schema.m_columns) {
-					if (column.m_type == ColumnType.ID)
-						continue;
-					line += column.m_name + ':';
-					bool isStr = column.LangType.fbs == "string";
-					if (isStr)
-						line += '"';
-					line += record[column.m_columnNumber].ParsedData.ToString();
-					if (isStr)
-						line += '"';
-					line += ", ";
-				}
-				line += "},";
-				json.Print(line);
-			}
-			json.Print("]}");
-			json.Flush();
-			Flatc.JsonToBin(m_table.m_name);
 		}
 
 		public void GenProgramCode()
@@ -383,14 +389,56 @@ namespace StaticDB_Maker
 			}
 		}
 
-		public bool Build()
+		public void GenBin()
+		{
+			Printer json = new Printer(Path.Combine(Config.Temp_Path, m_table.m_name + ".json"));
+			json.Print("{Data:[");
+			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
+				Record record = m_table.m_records[i];
+				string line = " { ID:" + record.ID_INT + ", ";
+				foreach (var column in m_table.m_schema.m_columns) {
+					if (column.m_type == ColumnType.ID)
+						continue;
+					line += column.m_name + ':';
+					bool isStr = column.TypeInfo.fbs == "string";
+					if (isStr)
+						line += '"';
+					line += record[column.m_columnNumber].ParsedData.ToString();
+					if (isStr)
+						line += '"';
+					line += ", ";
+				}
+				line += "},";
+				json.Print(line);
+			}
+			json.Print("]}");
+			json.Flush();
+			Flatc.JsonToBin(m_table.m_name);
+		}
+
+		public bool Build_Step1()
 		{
 			try {
 				if (m_verifier.Verify(Table.State.VerifyComplete) == false)
 					return false;
 				GenFBS();
-				GenBin();
+			}
+			catch (ParseError e) {
+				Common.OnError(e.Message);
+				return false;
+			}
+			catch (Exception e) {
+				Common.OnError(e.ToString());
+				return false;
+			}
+			return true;
+		}
+
+		public bool Build_Step2()
+		{
+			try {
 				GenProgramCode();
+				GenBin();
 			}
 			catch (ParseError e) {
 				Common.OnError(e.Message);
@@ -409,7 +457,30 @@ namespace StaticDB_Maker
 	{
 		public static Builder s_instance = new Builder();
 
+		public enum State
+		{
+			_NotStarted_ = 0,
+			Step1_GenFBS,
+			Step2_GenOthers,
+			Complete
+		}
+
+		public bool CheckState(State s)
+		{
+			lock (m_lock) {
+				return s <= m_state;
+			}
+		}
+		public void SetState(State s)
+		{
+			lock (m_lock) {
+				if (m_state < s)
+					m_state = s;
+			}
+		}
+
 		object m_lock = new object();
+		State m_state = State._NotStarted_;
 		Dictionary<string, TableBuilder> m_list = new Dictionary<string, TableBuilder>();
 		public TableBuilder FindBuilder(string table_name)
 		{

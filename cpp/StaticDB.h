@@ -157,8 +157,8 @@ namespace StaticDB
 
 		inline const Record& GetRecord(uint32_t ID) const
 		{
-			auto it = m_ID_INT.find(ID);
-			if (it == m_ID_INT.end())
+			auto it = m_ID.find(ID);
+			if (it == m_ID.end())
 				return Null<Record>();
 			return it->second;
 		}
@@ -169,28 +169,28 @@ namespace StaticDB
 			m_buffer = std::move(buffer);
 			m_data = flatbuffers::GetRoot<FBS_Data>(m_buffer.data());
 			if (m_data == nullptr)
-				throw Message("invalid buffer");
+				throw Message(typeid(FBS_Data).name(), " - invalid buffer");
 
 			flatbuffers::Verifier verifier(m_buffer.data(), m_buffer.size());
 			if (m_data->Verify(verifier) == false)
-				throw Message("fail verify");
+				throw Message(typeid(FBS_Data).name(), " - fail verify");
 
 			auto data = m_data->Data();
 			if (data == nullptr)
-				throw Message("data is null");
+				throw Message(typeid(FBS_Data).name(), " - data is null");
 
-			m_ID_INT.clear();
+			m_ID.clear();
 			for (auto p : *data) {
 				Record record(p);
-				uint32_t ID_INT = static_cast<uint32_t>(record->ID_INT());
-				if (m_ID_INT.emplace(ID_INT, record).second == false)
-					throw Message("duplicate ID_INT, ", ID_INT);
+				uint32_t ID = static_cast<uint32_t>(record->ID());
+				if (m_ID.emplace(ID, record).second == false)
+					throw Message(typeid(FBS_Data).name(), " - duplicate ID, ", ID);
 			}
 		}
 
 		std::vector<uint8_t> m_buffer;
 		const FBS_Data* m_data = nullptr;
-		std::unordered_map<uint32_t, Record> m_ID_INT;
+		std::unordered_map<uint32_t, Record> m_ID;
 	};
 
 

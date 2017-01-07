@@ -75,6 +75,7 @@ namespace StaticDB_Maker
 		}
 
 		delegate bool CheckChar(char c);
+		private static HashSet<string> s_Banished = null;
 		public static string CheckNamingRule(string name)
 		{
 			if (name.Length == 0)
@@ -89,10 +90,36 @@ namespace StaticDB_Maker
 				if (!isAlphabet(c) && !isNumber(c) && !isUnderbar(c))
 					return String.Format("invalid character, {0}[{1}]:{2}", name, i, c);
 			}
+
+			if (s_Banished == null) {
+				// 금칙어 목록
+				HashSet<string> banished = new HashSet<string>();
+				banished.Add("FBS_Data");
+				banished.Add("GetInt");
+				banished.Add("GetRecord");
+				banished.Add("GetStr");
+				banished.Add("GetTableFileName");
+				banished.Add("ID");
+				banished.Add("Init");
+				banished.Add("m_record");
+				banished.Add("MAX");
+				banished.Add("MIN");
+				banished.Add("OnLoaded");
+				banished.Add("Record");
+				banished.Add("RecordTemplate");
+				banished.Add("Table");
+				banished.Add("TableInterface");
+				lock (s_lock) {
+					if (s_Banished == null)
+						s_Banished = banished;
+				}
+			}
+			if (s_Banished.Contains(name))
+				return "banished word, " + name;
 			return "";
 		}
 
-		private static Dictionary<string, ColumnType> s_Str2ColumnType;
+		private static Dictionary<string, ColumnType> s_Str2ColumnType = null;
 		public static ColumnType FindColumnType(string str)
 		{
 			if (s_Str2ColumnType == null) {
@@ -303,7 +330,7 @@ namespace StaticDB_Maker
 			public string m_name = "";
 			public int m_columnID = 0; // COMMENT를 제외하고 순서대로 부여된 컬럼 식별자
 			public Parser Parse = DefaultParser.Unknown;
-			public TypeMapper LangType = new TypeMapper();
+			public TypeMapper TypeInfo = new TypeMapper();
 
 			public abstract string OnRegister(TableSchema schema);
 		}
@@ -424,13 +451,13 @@ namespace StaticDB_Maker
 			switch (m_type) {
 				case ColumnType.INT: {
 					Parse = DefaultParser.Long;
-					LangType = TypeMapper.byFBS("long");
+					TypeInfo = TypeMapper.byFBS("long");
 					break;
 				}
 				case ColumnType.STR:
 				case ColumnType.COMMENT: {
 					Parse = DefaultParser.String;
-					LangType = TypeMapper.byFBS("string");
+					TypeInfo = TypeMapper.byFBS("string");
 					break;
 				}
 				default: {
@@ -455,13 +482,13 @@ namespace StaticDB_Maker
 				case ColumnType.INT: {
 					m_name = Config.ColName_ID_INT;
 					Parse = DefaultParser.ID_INT;
-					LangType = TypeMapper.byFBS("uint");
+					TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
 				case ColumnType.STR: {
 					m_name = Config.ColName_ID_STR;
 					Parse = DefaultParser.ID_STR;
-					LangType = TypeMapper.byFBS("string");
+					TypeInfo = TypeMapper.byFBS("string");
 					break;
 				}
 				default: {
@@ -515,15 +542,16 @@ namespace StaticDB_Maker
 		public override string OnRegister(TableSchema schema)
 		{
 			m_detailType.m_owner = m_owner;
+			m_detailType.m_name = m_name;
 			switch (m_detailType.m_type) {
 				case ColumnType.INT: {
 					Parse = DefaultParser.ID_INT;
-					LangType = TypeMapper.byFBS("uint");
+					TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
 				case ColumnType.STR: {
 					Parse = DefaultParser.ID_STR;
-					LangType = TypeMapper.byFBS("string");
+					TypeInfo = TypeMapper.byFBS("string");
 					break;
 				}
 				case ColumnType.REF: {
@@ -552,7 +580,7 @@ namespace StaticDB_Maker
 			m_type = ColumnType.ORDER;
 			m_groupName = groupName;
 			Parse = DefaultParser.Long;
-			LangType = TypeMapper.byFBS("long");
+			TypeInfo = TypeMapper.byFBS("long");
 		}
 		public override string OnRegister(TableSchema schema)
 		{
@@ -577,7 +605,7 @@ namespace StaticDB_Maker
 			m_type = ColumnType.RATIO;
 			m_groupName = groupName;
 			Parse = DefaultParser.Uint;
-			LangType = TypeMapper.byFBS("uint");
+			TypeInfo = TypeMapper.byFBS("uint");
 		}
 		public override string OnRegister(TableSchema schema)
 		{
@@ -600,7 +628,7 @@ namespace StaticDB_Maker
 		{
 			m_type = ColumnType.RATE;
 			m_denominator = denominator;
-			LangType = TypeMapper.byFBS("double");
+			TypeInfo = TypeMapper.byFBS("double");
 		}
 		public override string OnRegister(TableSchema schema)
 		{

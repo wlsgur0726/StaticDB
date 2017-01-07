@@ -318,7 +318,7 @@ namespace StaticDB_Maker
 					if (column_ID_STR != null) {
 						enum_ID = new EnumInfo(table.m_name, "ID");
 						table.m_enums.Add(enum_ID.EnumName, enum_ID);
-						column_ID_INT.LangType = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
+						column_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
 					}
 
 					for (int row = Config.DataStartRow; row<=m_table.m_records.Count; ++row) {
@@ -385,7 +385,7 @@ namespace StaticDB_Maker
 					string err = reference.Find();
 					if (err.Length > 0)
 						throw new ParseError(table.m_name, Config.ColumnTypeRow, col, err);
-					column.LangType = reference.m_lastFindResult.column.LangType;
+					column.TypeInfo = reference.m_lastFindResult.column.TypeInfo;
 				}
 				return true;
 			}));

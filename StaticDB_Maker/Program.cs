@@ -37,13 +37,18 @@ namespace StaticDB_Maker
 				Config.flatc_Path = Path.Combine(@"D:\windows\kjh\workspace\flatbuffertest", "flatc.exe");
 				foreach (var table in Config.Target_Table) {
 					var builder = Builder.s_instance.FindBuilder(table);
-					if (builder.Build() == false)
+					if (builder.Build_Step1() == false)
+						Console.Error.WriteLine("build fail - " + table);
+				}
+				foreach (var table in Config.Target_Table) {
+					var builder = Builder.s_instance.FindBuilder(table);
+					if (builder.Build_Step2() == false)
 						Console.Error.WriteLine("build fail - " + table);
 				}
 				Generator.GenDBCode_CPP();
 			}
 			finally {
-				//(new DirectoryInfo(Config.Temp_Path)).Delete(true);
+				(new DirectoryInfo(Config.Temp_Path)).Delete(true);
 			}
 		}
 
