@@ -323,7 +323,7 @@ namespace StaticDB_Maker
 			fbs.Print("{");
 			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
 			{
-				fbs.Print("  {0},", name);
+				fbs.Print("  _{0},", name);
 			});
 			fbs.Print("}");
 			fbs.Print("");
@@ -332,7 +332,7 @@ namespace StaticDB_Maker
 				fbs.Print("enum {0} : uint", ei.EnumName);
 				fbs.Print("{");
 				foreach (var en in ei.NumToName)
-					fbs.Print("  {0} = {1},", en.Value, en.Key);
+					fbs.Print("  _{0} = {1},", en.Value, en.Key);
 				fbs.Print("}");
 				fbs.Print("");
 			}
@@ -348,28 +348,28 @@ namespace StaticDB_Maker
 			}
 			fbs.Print("namespace {0};", Config.Namespace);
 			fbs.Print("");
-			fbs.Print("table {0}", m_table.m_name);
+			fbs.Print("table {0}_FBS", m_table.m_name);
 			fbs.Print("{");
 
 			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
 			{
-				string print = String.Format("  {0} : {1}", name, column.TypeInfo.fbs);
+				string print = String.Format("  _{0} : {1}", name, column.TypeInfo.fbs);
 				EnumInfo ei;
 				if (EnumInfo.Enums.TryGetValue(column.TypeInfo.fbs, out ei)) {
 					var first = ei.NumToName.First();
-					print += " = " + first.Value;
+					print += " = _" + first.Value;
 				}
 				print += ';';
 				fbs.Print(print);
 			});
 			fbs.Print("}");
 			fbs.Print("");
-			fbs.Print("table {0}_Data", m_table.m_name);
+			fbs.Print("table {0}_FBS_Data", m_table.m_name);
 			fbs.Print("{");
-			fbs.Print("  Data : [{0}];", m_table.m_name);
+			fbs.Print("  Data : [{0}_FBS];", m_table.m_name);
 			fbs.Print("}");
 			fbs.Print("");
-			fbs.Print("root_type {0}_Data;", m_table.m_name);
+			fbs.Print("root_type {0}_FBS_Data;", m_table.m_name);
 			fbs.Flush();
 		}
 
@@ -395,11 +395,11 @@ namespace StaticDB_Maker
 			json.Print("{Data:[");
 			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 				Record record = m_table.m_records[i];
-				string line = " { ID:" + record.ID_INT + ", ";
+				string line = " { _ID:" + record.ID_INT + ", ";
 				foreach (var column in m_table.m_schema.m_columns) {
 					if (column.m_type == ColumnType.ID)
 						continue;
-					line += column.m_name + ':';
+					line += '_' + column.m_name + ':';
 					bool isStr = column.TypeInfo.fbs == "string";
 					if (isStr)
 						line += '"';

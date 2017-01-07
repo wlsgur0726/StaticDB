@@ -43,7 +43,7 @@ namespace StaticDB_Maker
 		REF,
 		GROUP,
 		ORDER,
-		RATIO,
+		WEIGHT,
 		RATE,
 		COMMENT,
 	}
@@ -75,7 +75,6 @@ namespace StaticDB_Maker
 		}
 
 		delegate bool CheckChar(char c);
-		private static HashSet<string> s_Banished = null;
 		public static string CheckNamingRule(string name)
 		{
 			if (name.Length == 0)
@@ -83,39 +82,13 @@ namespace StaticDB_Maker
 			CheckChar isAlphabet = (char c) => { return (c>='a' && c<='z') || (c>='A' && c<='Z'); };
 			CheckChar isNumber = (char c) => { return (c>='0' && c<='9'); };
 			CheckChar isUnderbar = (char c) => { return c == '_'; };
-			if (!isAlphabet(name[0]) && !isUnderbar(name[0]))
+			if (isUnderbar(name[0]))
 				return "invalid first character, " + name;
 			for (int i = 1; i<name.Length; ++i) {
 				char c = name[i];
 				if (!isAlphabet(c) && !isNumber(c) && !isUnderbar(c))
 					return String.Format("invalid character, {0}[{1}]:{2}", name, i, c);
 			}
-
-			if (s_Banished == null) {
-				// 금칙어 목록
-				HashSet<string> banished = new HashSet<string>();
-				banished.Add("FBS_Data");
-				banished.Add("GetInt");
-				banished.Add("GetRecord");
-				banished.Add("GetStr");
-				banished.Add("GetTableFileName");
-				banished.Add("ID");
-				banished.Add("Init");
-				banished.Add("m_record");
-				banished.Add("MAX");
-				banished.Add("MIN");
-				banished.Add("OnLoaded");
-				banished.Add("Record");
-				banished.Add("RecordTemplate");
-				banished.Add("Table");
-				banished.Add("TableInterface");
-				lock (s_lock) {
-					if (s_Banished == null)
-						s_Banished = banished;
-				}
-			}
-			if (s_Banished.Contains(name))
-				return "banished word, " + name;
 			return "";
 		}
 
@@ -129,7 +102,7 @@ namespace StaticDB_Maker
 				map.Add("ID",		ColumnType.ID);
 				map.Add("REF",		ColumnType.REF);
 				map.Add("GROUP",	ColumnType.GROUP);
-				map.Add("RATIO",	ColumnType.RATIO);
+				map.Add("WEIGHT",	ColumnType.WEIGHT);
 				map.Add("ORDER",	ColumnType.ORDER);
 				map.Add("RATE",		ColumnType.RATE);
 				map.Add("COMMENT",	ColumnType.COMMENT);
@@ -328,7 +301,7 @@ namespace StaticDB_Maker
 			public int m_columnNumber = 0; // 소스상의 컬럼 번호
 			public int m_lastErrorRow = 0;
 			public string m_name = "";
-			public int m_columnID = 0; // COMMENT를 제외하고 순서대로 부여된 컬럼 식별자
+			public int m_columnIndex = 0;
 			public Parser Parse = DefaultParser.Unknown;
 			public TypeMapper TypeInfo = new TypeMapper();
 
@@ -347,7 +320,7 @@ namespace StaticDB_Maker
 
 		public void RegisterColumn(Column column)
 		{
-			column.m_columnID = m_columns.Count;
+			column.m_columnIndex = m_columns.Count;
 			column.m_owner = m_owner;
 			m_columns.Add(column);
 		}
@@ -420,7 +393,7 @@ namespace StaticDB_Maker
 						column.m_lastErrorRow = Config.ColumnNameRow;
 						throw new ParseError("dupicate column name " + column.m_name);
 					}
-					m_name2index.Add(column.m_name, column.m_columnID);
+					m_name2index.Add(column.m_name, column.m_columnIndex);
 				}
 				catch (ParseError e) {
 					success = false;
@@ -596,13 +569,13 @@ namespace StaticDB_Maker
 		}
 	}
 
-	class Column_RATIO : TableSchema.Column
+	class Column_WEIGHT : TableSchema.Column
 	{
 		public string m_groupName;
 		public Column_GROUP m_group = null;
-		public Column_RATIO(string groupName)
+		public Column_WEIGHT(string groupName)
 		{
-			m_type = ColumnType.RATIO;
+			m_type = ColumnType.WEIGHT;
 			m_groupName = groupName;
 			Parse = DefaultParser.Uint;
 			TypeInfo = TypeMapper.byFBS("uint");

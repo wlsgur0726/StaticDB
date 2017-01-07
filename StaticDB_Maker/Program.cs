@@ -26,7 +26,7 @@ namespace StaticDB_Maker
 						Console.WriteLine("warning!!! ignore table : " + err);
 						continue;
 					}
-					Config.TableID.Add(name, Config.TableID.Count+1);
+					Config.TableID.Add(name, Config.TableID.Count);
 					Config.Target_Table.Add(name);
 				}
 

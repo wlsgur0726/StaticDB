@@ -47,17 +47,6 @@ namespace StaticDB
 
 
 
-	template <typename T>
-	std::mt19937_64& RandomGenrator()
-	{
-		static std::random_device s_rd;
-		static std::uniform_int_distribution<T> s_dist;
-		static std::mt19937_64 s_generator(s_dist(s_rd));
-		return s_generator;
-	}
-
-
-
 	template <typename K, typename V>
 	class HashMap : public std::unordered_map<K, V>
 	{
@@ -74,16 +63,27 @@ namespace StaticDB
 
 
 
+	template <typename T>
+	std::mt19937_64& RandomGenrator()
+	{
+		thread_local std::random_device t_rd;
+		thread_local std::uniform_int_distribution<T> t_dist;
+		thread_local std::mt19937_64 t_generator(t_dist(t_rd));
+		return t_generator;
+	}
+
+
+
 	template <typename RECORD>
-	class Ratio
+	class Weight
 	{
 	public:
-		void Add(uint32_t ratio, const RECORD* record)
+		void Add(uint32_t weight, const RECORD* record)
 		{
-			if (ratio == 0)
+			if (weight == 0)
 				return;
 			auto org = m_total;
-			m_total += ratio;
+			m_total += weight;
 			if (m_total < org)
 				throw Message("overflow error");
 			m_candidate.emplace(m_total, record);
@@ -111,25 +111,28 @@ namespace StaticDB
 
 
 
-	template <typename T>
-	class RecordTemplate
+	template <typename FBS_TYPE>
+	class Record
 	{
 	public:
-		RecordTemplate(const T* record = nullptr) : m_record(record) {}
-		inline operator const T*() const { return m_record; }
-		inline const T* operator->() const { return m_record; }
-		inline const T& operator*() const { return *m_record; }
+		typedef FBS_TYPE FBS;
+
+		Record(const FBS* record = nullptr) : m_record(record) {}
+		inline const FBS* get() const { return m_record; }
+		inline operator const FBS*() const { return m_record; }
+		inline const FBS* operator->() const { return m_record; }
+		inline const FBS& operator*() const { return *m_record; }
 		inline bool operator==(std::nullptr_t) const { return m_record == nullptr; }
 		inline bool operator!=(std::nullptr_t) const { return m_record != nullptr; }
-		inline bool operator==(const T* right) const { return m_record == right; }
-		inline bool operator!=(const T* right) const { return m_record != right; }
-		inline bool operator<(const T* right) const { return m_record < right; }
-		inline bool operator>(const T* right) const { return m_record > right; }
-		inline bool operator<=(const T* right) const { return m_record <= right; }
-		inline bool operator>=(const T* right) const { return m_record >= right; }
+		inline bool operator==(const FBS* right) const { return m_record == right; }
+		inline bool operator!=(const FBS* right) const { return m_record != right; }
+		inline bool operator<(const FBS* right) const { return m_record < right; }
+		inline bool operator>(const FBS* right) const { return m_record > right; }
+		inline bool operator<=(const FBS* right) const { return m_record <= right; }
+		inline bool operator>=(const FBS* right) const { return m_record >= right; }
 
 	protected:
-		const T* m_record;
+		const FBS* m_record;
 	};
 
 
@@ -137,6 +140,25 @@ namespace StaticDB
 	class TableInterface;
 	typedef std::unique_ptr<TableInterface> Table_ptr;
 	typedef std::vector<Table_ptr> Tables;
+
+	template <typename TABLE_ID>
+	inline uint32_t GetTableIndex(TABLE_ID table_ID)
+	{
+		return static_cast<uint32_t>(table_ID);
+	}
+
+	template <typename TABLE, typename TABLE_ID, typename RECORD_ID>
+	inline const typename TABLE::Record& GetRecord(const Tables& tables,
+														  TABLE_ID table_ID,
+														  RECORD_ID record_ID)
+	{
+		auto& table = tables[GetTableIndex(table_ID)];
+		TABLE* cast = dynamic_cast<TABLE*>(table.get());
+		return cast->GetRecord(record_ID);
+	}
+
+
+
 	class TableInterface
 	{
 	public:
@@ -155,13 +177,13 @@ namespace StaticDB
 		typedef FBS_DATA	FBS_Data;
 		typedef RECORD		Record;
 
-		inline const Record& GetRecord(uint32_t ID) const
-		{
-			auto it = m_ID.find(ID);
-			if (it == m_ID.end())
-				return Null<Record>();
-			return it->second;
-		}
+		inline const Record& GetRecord(uint32_t ID) const { return m_ID[ID]; }
+		inline const Record& operator[](uint32_t ID) const { return m_ID[ID]; }
+
+		typedef typename HashMap<uint32_t, Record>::const_iterator const_iterator;
+		inline const_iterator begin() const { return m_ID.begin(); }
+		inline const_iterator end() const { return m_ID.end(); }
+
 
 	protected:
 		virtual void Init(std::vector<uint8_t>&& buffer) override
@@ -182,7 +204,7 @@ namespace StaticDB
 			m_ID.clear();
 			for (auto p : *data) {
 				Record record(p);
-				uint32_t ID = static_cast<uint32_t>(record->ID());
+				uint32_t ID = static_cast<uint32_t>(record->_ID());
 				if (m_ID.emplace(ID, record).second == false)
 					throw Message(typeid(FBS_Data).name(), " - duplicate ID, ", ID);
 			}
@@ -190,7 +212,7 @@ namespace StaticDB
 
 		std::vector<uint8_t> m_buffer;
 		const FBS_Data* m_data = nullptr;
-		std::unordered_map<uint32_t, Record> m_ID;
+		HashMap<uint32_t, Record> m_ID;
 	};
 
 
@@ -198,35 +220,16 @@ namespace StaticDB
 	class DB
 	{
 	public:
-		std::function<void(const std::string&)> OnError = [](const std::string& err)
-		{
-			std::cerr << (err + '\n');
-		};
-
-		template <typename TABLE_ID>
-		inline static uint32_t GetTableIndex(TABLE_ID table_ID)
-		{
-			return static_cast<uint32_t>(table_ID) - 1;
-		}
-
-		template <typename TABLE, typename TABLE_ID, typename RECORD_ID>
-		inline static const typename TABLE::Record& GetRecord(const Tables& tables,
-															  TABLE_ID table_ID,
-															  RECORD_ID record_ID)
-		{
-			auto& table = tables[GetTableIndex(table_ID)];
-			TABLE* cast = dynamic_cast<TABLE*>(table.get());
-			return cast->GetRecord(record_ID);
-		}
+		virtual ~DB() {}
 
 	protected:
 		bool InitTables(const std::wstring& dir, Tables&& tables)
 		{
 			bool ok = true;
-			std::experimental::filesystem::path dir2(dir.c_str());
+			std::experimental::filesystem::path base_path(dir.c_str());
 			for (auto& table : tables) {
 				try {
-					auto file_path = dir2 / table->GetTableFileName();
+					auto file_path = base_path / table->GetTableFileName();
 					std::ifstream ifs(file_path.c_str(), std::ios::binary | std::ios::ate);
 					if (ifs.is_open() == false)
 						throw Message("failed to open file, ", file_path);
@@ -258,7 +261,18 @@ namespace StaticDB
 			return OnInitComplete();
 		}
 
-		virtual bool OnInitComplete() { return true; };
+		virtual void OnError(const std::string& errmsg)
+		{
+			std::cerr << (errmsg + '\n');
+		}
+
+		virtual bool OnInitComplete()
+		{
+			// if (verify == fail)
+			//    return false;
+			// return true;
+			return true;
+		};
 
 		Tables m_tables;
 	};

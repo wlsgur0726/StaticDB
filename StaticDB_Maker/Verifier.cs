@@ -246,11 +246,11 @@ namespace StaticDB_Maker
 								col_info = new Column_ORDER(type_tokens[1]);
 							break;
 						}
-						case ColumnType.RATIO: {
+						case ColumnType.WEIGHT: {
 							if (type_tokens.Length <= 1)
-								col_info = new Column_RATIO("");
+								col_info = new Column_WEIGHT("");
 							else
-								col_info = new Column_RATIO(type_tokens[1]);
+								col_info = new Column_WEIGHT(type_tokens[1]);
 							break;
 						}
 						case ColumnType.RATE: {
