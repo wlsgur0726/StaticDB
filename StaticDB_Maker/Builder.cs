@@ -395,18 +395,18 @@ namespace StaticDB_Maker
 			json.Print("{Data:[");
 			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 				Record record = m_table.m_records[i];
-				string line = " { _ID:" + record.ID_INT + ", ";
+				string line = " {_ID:" + record.ID_INT + ',';
 				foreach (var column in m_table.m_schema.m_columns) {
 					if (column.m_type == ColumnType.ID)
 						continue;
-					line += '_' + column.m_name + ':';
 					bool isStr = column.TypeInfo.fbs == "string";
+					line += '_' + column.m_name + ':';
 					if (isStr)
 						line += '"';
 					line += record[column.m_columnNumber].ParsedData.ToString();
 					if (isStr)
 						line += '"';
-					line += ", ";
+					line += ",";
 				}
 				line += "},";
 				json.Print(line);

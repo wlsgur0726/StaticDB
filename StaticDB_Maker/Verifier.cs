@@ -103,7 +103,7 @@ namespace StaticDB_Maker
 		{
 			Data data = DefaultParser.ID_INT(src);
 			if (data.Err())
-				data = DefaultParser.String(src);
+				data = DefaultParser.ID_STR(src);
 			return data;
 		};
 	}
@@ -436,8 +436,48 @@ namespace StaticDB_Maker
 				return success;
 			}));
 
-			// Step6 - enum 매핑
-			m_verify.Add(new VerifyObject(Table.State.Step6_Complete_Enum_Mapping, (Table table) =>
+			// Step6 - 기타 부가적인 검증
+			m_verify.Add(new VerifyObject(Table.State.Step6_Complete_AdditionalVerify, (Table table) =>
+			{
+				bool success = true;
+				// WEIGHT 총합이 0인지 체크
+				foreach (var column in table.m_schema.m_columns) {
+					if (column.m_type != ColumnType.WEIGHT)
+						continue;
+					int col = column.m_columnNumber;
+					Column_WEIGHT cast = (Column_WEIGHT)column;
+					Dictionary<uint, uint> sum = new Dictionary<uint, uint>();
+					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
+						Record record = m_table.m_records[i];
+						Cell cell = record[col];
+
+						uint group;
+						if (cast.m_group == null)
+							group = 0;
+						else
+							group = (uint)record[cast.m_group.m_columnNumber].ParsedData.value;
+
+						if (sum.ContainsKey(group) == false)
+							sum.Add(group, 0);
+						sum[group] += (uint)cell.ParsedData.value;
+					}
+					foreach (var it in sum) {
+						string columnName;
+						if (cast.m_group == null)
+							columnName = Config.ColName_ID_INT;
+						else
+							columnName = cast.m_group.m_name;
+						if (it.Value == 0) {
+							success = false;
+							Common.OnError(table.m_name, 0, col, String.Format("zero-WEIGHT error, {0}:{1}", columnName, it.Key));
+						}
+					}
+				}
+				return success;
+			}));
+
+			// Step7 - enum 매핑
+			m_verify.Add(new VerifyObject(Table.State.Step7_Complete_Enum_Mapping, (Table table) =>
 			{
 				foreach (var column in table.m_schema.m_columns) {
 					int col = column.m_columnNumber;

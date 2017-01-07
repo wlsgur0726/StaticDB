@@ -524,7 +524,7 @@ namespace StaticDB_Maker
 				}
 				case ColumnType.STR: {
 					Parse = DefaultParser.ID_STR;
-					TypeInfo = TypeMapper.byFBS("string");
+					TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, m_name));
 					break;
 				}
 				case ColumnType.REF: {
@@ -709,7 +709,8 @@ namespace StaticDB_Maker
 			Step3_Verified_Referance,
 			Step4_Verified_NomalData,
 			Step5_Verified_ReferanceData,
-			Step6_Complete_Enum_Mapping,
+			Step6_Complete_AdditionalVerify,
+			Step7_Complete_Enum_Mapping,
 			VerifyComplete,
 		}
 
