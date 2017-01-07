@@ -119,7 +119,7 @@ namespace StaticDB_Maker
 						return;
 				}
 				file.Print("        case {0}_Column::_{1}:", table.m_name, name);
-				file.Print("          return static_cast<int64_t>(get()->_{0}());", name);
+				file.Print("          return static_cast<int64_t>(ref()._{0}());", name);
 			});
 			file.Print("      }");
 			file.Print("      assert(false); // invalid column");
@@ -133,11 +133,11 @@ namespace StaticDB_Maker
 			{
 				string ret;
 				if (column.TypeInfo.fbs == "string")
-					ret = String.Format("get()->_{0}()->str()", name);
+					ret = String.Format("ref()._{0}()->str()", name);
 				else if (column.TypeInfo.IsEnum())
-					ret = String.Format("std::to_string(static_cast<uint32_t>(get()->_{0}()))", name);
+					ret = String.Format("std::to_string(static_cast<uint32_t>(ref()._{0}()))", name);
 				else
-					ret = String.Format("std::to_string(get()->_{0}())", name);
+					ret = String.Format("std::to_string(ref()._{0}())", name);
 				file.Print("        case {0}_Column::_{1}:", table.m_name, name);
 				file.Print("          return {0};", ret);
 			});
@@ -156,7 +156,7 @@ namespace StaticDB_Maker
 						return;
 				}
 				file.Print("        case {0}_Column::_{1}:", table.m_name, name);
-				file.Print("          return static_cast<double>(get()->_{0}());", name);
+				file.Print("          return static_cast<double>(ref()._{0}());", name);
 			});
 			file.Print("      }");
 			file.Print("      assert(false); // invalid column");

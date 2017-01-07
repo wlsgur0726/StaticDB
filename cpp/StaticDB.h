@@ -119,6 +119,7 @@ namespace StaticDB
 
 		Record(const FBS* record = nullptr) : m_record(record) {}
 		inline const FBS* get() const { return m_record; }
+		inline const FBS& ref() const { return *m_record; }
 		inline operator const FBS*() const { return m_record; }
 		inline const FBS* operator->() const { return m_record; }
 		inline const FBS& operator*() const { return *m_record; }
