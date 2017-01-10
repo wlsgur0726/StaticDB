@@ -316,7 +316,7 @@ namespace StaticDB_Maker
 					Column_ID column_ID_INT = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_INT);
 					Column_ID column_ID_STR = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_STR);
 					if (column_ID_STR != null) {
-						enum_ID = new EnumInfo(table.m_name, "ID");
+						enum_ID = new EnumInfo(Common.EnumName(table.m_name, "ID"));
 						table.m_enums.Add(enum_ID.EnumName, enum_ID);
 						column_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
 					}
@@ -379,7 +379,7 @@ namespace StaticDB_Maker
 						continue;
 
 					ReferenceFinder reference = new ReferenceFinder();
-					reference.m_startTableName = table.m_name;
+					reference.m_startTable = table;
 					reference.m_targetTableName = refinfo.m_refTable;
 					reference.m_targetColumnName = refinfo.m_refColumn;
 					string err = reference.Find();
@@ -474,24 +474,6 @@ namespace StaticDB_Maker
 					}
 				}
 				return success;
-			}));
-
-			// Step7 - enum 매핑
-			m_verify.Add(new VerifyObject(Table.State.Step7_Complete_Enum_Mapping, (Table table) =>
-			{
-				foreach (var column in table.m_schema.m_columns) {
-					int col = column.m_columnNumber;
-					if (column.m_type==ColumnType.GROUP && ((Column_GROUP)column).m_detailType.m_type==ColumnType.STR) {
-						EnumInfo ei = new EnumInfo(table.m_name, column.m_name);
-						table.m_enums.Add(ei.EnumName, ei);
-						for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
-							Record record = m_table.m_records[i];
-							Cell cell = record[col];
-							ei.Add((string)cell.ParsedData.value);
-						}
-					}
-				}
-				return true;
 			}));
 
 			m_verify.Add(new VerifyObject(Table.State.VerifyComplete, (Table table) =>

@@ -1,15 +1,59 @@
-﻿#include "D:\windows\kjh\Documents\temp\sdb\cpp\Test_DB.h"
-
-bool Test::Test_DB::OnInitComplete()
-{
-	return true;
-}
+﻿#include "stdafx.h"
 
 int main()
 {
-	Test::Test_DB db;
-	bool b = db.InitTables(L"D:\\windows\\kjh\\Documents\\temp\\sdb\\bin\\");
-	auto rec = db.ItemGacha().Pick_GachaRatio(4);
-	auto id = rec.Ref_ItemID()->_ID();
+	Test01::Test01_DB db;
+	bool b;
+	b = db.InitTables(L"D:\\windows\\kjh\\workspace\\git\\StaticDB\\example\\gen_bin\\Test01"); assert(b);
+
 	return 0;
+}
+
+#define IterateColumn(TableName, var)\
+	for (uint32_t var=(uint32_t)TableName##_Column::MIN; var<=(uint32_t)TableName##_Column::MAX; ++var)
+
+bool Test01::Test01_DB::OnInitComplete()
+{
+	//return true;
+	std::cout << "\n" << "T1 all records\n";
+	for (auto& it : T1()) {
+		std::cout << "  " << it.first << "\n";
+		IterateColumn(Test01::T1, col) {
+			std::cout << "    " << Test01::EnumNameT1_Column(static_cast<Test01::T1_Column>(col));
+			std::cout << "  :  " << it.second.GetStr(col) << '\n';
+		}
+	}
+
+	std::cout << "\n" << "T1 colGROUP1\n";
+	{
+		uint32_t groupID;
+		groupID = 111;
+		std::cout << "  " << groupID << "\n";
+		{
+			auto& group = T1()._colGROUP1(groupID);
+			std::cout << "    ";
+			for (auto& it : group)
+				std::cout << static_cast<uint32_t>(it.first) << ' ';
+			std::cout << '\n';
+		}
+		groupID = 222;
+		std::cout << "  " << groupID << "\n";
+		{
+			auto& group = T1()._colGROUP1(groupID);
+			std::cout << "    ";
+			for (auto& it : group)
+				std::cout << static_cast<uint32_t>(it.first) << ' ';
+			std::cout << '\n';
+		}
+		groupID = 333;
+		std::cout << "  " << groupID << "\n";
+		{
+			auto& group = T1()._colGROUP1(groupID);
+			std::cout << "    ";
+			for (auto& it : group)
+				std::cout << static_cast<uint32_t>(it.first) << ' ';
+			std::cout << '\n';
+		}
+	}
+	return true;
 }

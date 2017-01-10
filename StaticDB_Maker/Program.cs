@@ -14,7 +14,7 @@ namespace StaticDB_Maker
 		static void Test()
 		{
 			try {
-				Config.DB_Path = @"D:\windows\kjh\Documents\temp\sdb";
+				Config.DB_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\DB\Test01";
 				DirectoryInfo di = new DirectoryInfo(Config.DB_Path);
 				var files = di.GetFiles();
 				foreach (var file in files) {
@@ -30,33 +30,38 @@ namespace StaticDB_Maker
 					Config.Target_Table.Add(name);
 				}
 
-				Config.Namespace = "Test";
-				Config.Out_FBS_Path = Path.Combine(Config.DB_Path, "gen");
-				Config.Out_BIN_Path = Path.Combine(Config.DB_Path, "bin");
-				Config.Out_CPP_Path = Path.Combine(Config.DB_Path, "cpp");
+				Config.Namespace = "Test01";
+				Config.Out_FBS_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\gen_fbs\Test01";
+				Config.Out_BIN_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\gen_bin\Test01";
+				Config.Out_CPP_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\cpp\Test01";
 				Config.flatc_Path = Path.Combine(@"D:\windows\kjh\workspace\flatbuffertest", "flatc.exe");
 				foreach (var table in Config.Target_Table) {
 					var builder = Builder.s_instance.FindBuilder(table);
 					if (builder.Build_Step1() == false)
-						Console.Error.WriteLine("build fail - " + table);
+						throw new Exception("build fail - " + table);
 				}
 				foreach (var table in Config.Target_Table) {
 					var builder = Builder.s_instance.FindBuilder(table);
 					if (builder.Build_Step2() == false)
-						Console.Error.WriteLine("build fail - " + table);
+						throw new Exception("build fail - " + table);
 				}
 				Generator.GenDBCode_CPP();
 			}
+			catch (Exception e) {
+				Console.Error.WriteLine(e.ToString());
+			}
 			finally {
-				(new DirectoryInfo(Config.Temp_Path)).Delete(true);
+				try {
+					//(new DirectoryInfo(Config.Temp_Path)).Delete(true);
+				}
+				catch (Exception) {
+				}
 			}
 		}
 
 		static void Main(string[] args)
 		{
 			Test();
-			//Path.
-			//Console.WriteLine(Path.GetDirectoryName (@"D:\windows\kjh\Documents\temp\sdb\Item.csv"));
 		}
 	}
 }

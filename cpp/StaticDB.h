@@ -51,11 +51,21 @@ namespace StaticDB
 	class HashMap : public std::unordered_map<K, V>
 	{
 	public:
-		using std::unordered_map<K, V>::operator[];
-		const V& operator[](const K& key) const
+		typedef std::unordered_map<K, V> BaseType;
+
+		template <typename T>
+		V& operator[](T key)
 		{
-			auto it = find(key);
-			if (it == end())
+			static_assert(std::is_same<T, K>::value || std::is_same<T, uint32_t>::value, "invalid type T");
+			return BaseType::operator[](static_cast<K>(key));
+		}
+
+		template <typename T>
+		const V& operator[](T key) const
+		{
+			static_assert(std::is_same<T, K>::value || std::is_same<T, uint32_t>::value, "invalid type T");
+			auto it = BaseType::find(static_cast<K>(key));
+			if (it == BaseType::end())
 				return Null<V>();
 			return it->second;
 		}
@@ -205,7 +215,7 @@ namespace StaticDB
 			m_ID.clear();
 			for (auto p : *data) {
 				Record record(p);
-				uint32_t ID = static_cast<uint32_t>(record->_ID());
+				uint32_t ID = static_cast<uint32_t>(record->_ID_INT());
 				if (m_ID.emplace(ID, record).second == false)
 					throw Message(typeid(FBS_Data).name(), " - duplicate ID, ", ID);
 			}

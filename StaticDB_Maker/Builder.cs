@@ -237,7 +237,7 @@ namespace StaticDB_Maker
 			while (flatc.StandardOutput.Peek() >= 0)
 				stdout += flatc.StandardOutput.ReadLine() + '\n';
 			if (flatc.ExitCode != 0)
-				throw new ParseError(table, 0, 0, String.Format("flatc error\n{0}", stdout));
+				throw new Exception(Common.ErrMsg(table, 0, 0, String.Format("flatc error\n{0}", stdout)));
 		}
 
 		public static void JsonToBin(string table)
@@ -288,27 +288,21 @@ namespace StaticDB_Maker
 			m_verifier = verifier;
 		}
 
-		public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column, string name);
-		public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
-		{
-			foreach (var column in table.m_schema.m_columns) {
-				string name;
-				switch (column.m_type) {
-					case ColumnType.ID: {
-						Column_ID cast = (Column_ID)column;
-						if (cast.m_detailType == ColumnType.STR)
-							continue;
-						name = "ID";
-						break;
-					}
-					default: {
-						name = column.m_name;
-						break;
-					}
-				}
-				f(column, name);
-			}
-		}
+		//public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column);
+		//public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
+		//{
+		//	foreach (var column in table.m_schema.m_columns) {
+		//		switch (column.m_type) {
+		//			case ColumnType.ID: {
+		//				Column_ID cast = (Column_ID)column;
+		//				if (cast.m_detailType == ColumnType.STR)
+		//					continue;
+		//				break;
+		//			}
+		//		}
+		//		f(column);
+		//	}
+		//}
 
 		public void GenFBS()
 		{
@@ -321,10 +315,8 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("enum {0}_Column : uint", m_table.m_name);
 			fbs.Print("{");
-			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
-			{
-				fbs.Print("  _{0},", name);
-			});
+			foreach (var column in m_table.m_schema.m_columns)
+				fbs.Print("  _{0},", column.m_name);
 			fbs.Print("}");
 			fbs.Print("");
 			foreach (var it in m_table.m_enums) {
@@ -341,27 +333,25 @@ namespace StaticDB_Maker
 			fbs = new Printer(Path.Combine(Config.Out_FBS_Path, m_table.m_name + ".fbs"));
 			fbs.Print("// {0}", Config.AutoGenComment);
 			fbs.Print("include \"{0}\";", enum_fbs_filename);
-			foreach (var column in m_table.m_schema.m_columns) {
-				var ri = Common.GetRefInfo(column);
-				if (ri != null)
-					fbs.Print("include \"{0}_enum.fbs\";", ri.m_refTable);
-			}
+			foreach (var refTable in m_table.m_refTables)
+				fbs.Print("include \"{0}_enum.fbs\";", refTable);
 			fbs.Print("namespace {0};", Config.Namespace);
 			fbs.Print("");
 			fbs.Print("table {0}_FBS", m_table.m_name);
 			fbs.Print("{");
 
-			Loop_FBS_Columns(m_table, (TableSchema.Column column, string name) =>
-			{
-				string print = String.Format("  _{0} : {1}", name, column.TypeInfo.fbs);
-				EnumInfo ei;
-				if (EnumInfo.Enums.TryGetValue(column.TypeInfo.fbs, out ei)) {
-					var first = ei.NumToName.First();
+			foreach (var column in m_table.m_schema.m_columns) {
+				var type = column.TypeInfo;
+				if (column.m_type==ColumnType.ID && ((Column_ID)column).m_detailType==ColumnType.INT)
+					type = TypeMapper.byFBS("uint");
+				string print = String.Format("  _{0} : {1}", column.m_name, type.fbs);
+				if (type.IsEnum()) {
+					var first = EnumInfo.Enums[type.fbs].NumToName.First();
 					print += " = _" + first.Value;
 				}
 				print += ';';
 				fbs.Print(print);
-			});
+			}
 			fbs.Print("}");
 			fbs.Print("");
 			fbs.Print("table {0}_FBS_Data", m_table.m_name);
@@ -395,7 +385,7 @@ namespace StaticDB_Maker
 			json.Print("{Data:[");
 			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 				Record record = m_table.m_records[i];
-				string line = " {_ID:" + record.ID_INT + ',';
+				string line = " {_ID_INT:" + record.ID_INT + ',';
 				foreach (var column in m_table.m_schema.m_columns) {
 					if (column.m_type == ColumnType.ID)
 						continue;
