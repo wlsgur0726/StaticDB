@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "flatbuffers/flatbuffers.h"
+#include <cstdint>
 #include <string>
 #include <sstream>
 #include <fstream>

@@ -9,8 +9,8 @@ int main()
 	return 0;
 }
 
-#define IterateColumn(TableName, var)\
-	for (uint32_t var=(uint32_t)TableName##_Column::MIN; var<=(uint32_t)TableName##_Column::MAX; ++var)
+#define IterateField(TableName, var)\
+	for (uint32_t var=(uint32_t)TableName##_Field::MIN; var<=(uint32_t)TableName##_Field::MAX; ++var)
 
 bool Test01::Test01_DB::OnInitComplete()
 {
@@ -18,8 +18,8 @@ bool Test01::Test01_DB::OnInitComplete()
 	std::cout << "\n" << "T1 all records\n";
 	for (auto& it : T1()) {
 		std::cout << "  " << it.first << "\n";
-		IterateColumn(Test01::T1, col) {
-			std::cout << "    " << Test01::EnumNameT1_Column(static_cast<Test01::T1_Column>(col));
+		IterateField(Test01::T1, col) {
+			std::cout << "    " << Test01::EnumNameT1_Field(static_cast<Test01::T1_Field>(col));
 			std::cout << "  :  " << it.second.GetStr(col) << '\n';
 		}
 	}

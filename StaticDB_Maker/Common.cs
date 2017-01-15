@@ -10,8 +10,8 @@ namespace StaticDB_Maker
 {
 	class Config
 	{
-		public static readonly int ColumnTypeRow = 1;
-		public static readonly int ColumnNameRow = 2;
+		public static readonly int FieldTypeRow = 1;
+		public static readonly int FieldNameRow = 2;
 		public static readonly int DataStartRow = 3;
 
 		public static readonly string ColName_ID_INT = "ID_INT";
@@ -38,7 +38,7 @@ namespace StaticDB_Maker
 	}
 
 
-	enum ColumnType
+	enum FieldType
 	{
 		_UNKNOWN_,
 		INT,
@@ -96,41 +96,41 @@ namespace StaticDB_Maker
 			return "";
 		}
 
-		private static Dictionary<string, ColumnType> s_Str2ColumnType = null;
-		public static ColumnType FindColumnType(string str)
+		private static Dictionary<string, FieldType> s_Str2FieldType = null;
+		public static FieldType FindFieldType(string str)
 		{
-			if (s_Str2ColumnType == null) {
-				Dictionary<string, ColumnType> map = new Dictionary<string, ColumnType>();
-				map.Add("INT",		ColumnType.INT);
-				map.Add("STR",		ColumnType.STR);
-				map.Add("ID",		ColumnType.ID);
-				map.Add("REF",		ColumnType.REF);
-				map.Add("GROUP",	ColumnType.GROUP);
-				map.Add("WEIGHT",	ColumnType.WEIGHT);
-				map.Add("ORDER",	ColumnType.ORDER);
-				map.Add("RATE",		ColumnType.RATE);
-				map.Add("COMMENT",	ColumnType.COMMENT);
+			if (s_Str2FieldType == null) {
+				Dictionary<string, FieldType> map = new Dictionary<string, FieldType>();
+				map.Add("INT",		FieldType.INT);
+				map.Add("STR",		FieldType.STR);
+				map.Add("ID",		FieldType.ID);
+				map.Add("REF",		FieldType.REF);
+				map.Add("GROUP",	FieldType.GROUP);
+				map.Add("WEIGHT",	FieldType.WEIGHT);
+				map.Add("ORDER",	FieldType.ORDER);
+				map.Add("RATE",		FieldType.RATE);
+				map.Add("COMMENT",	FieldType.COMMENT);
 				lock (s_lock) {
-					if (s_Str2ColumnType == null)
-						s_Str2ColumnType = map;
+					if (s_Str2FieldType == null)
+						s_Str2FieldType = map;
 				}
 			}
-			ColumnType ret;
-			if (s_Str2ColumnType.TryGetValue(str, out ret))
+			FieldType ret;
+			if (s_Str2FieldType.TryGetValue(str, out ret))
 				return ret;
-			return ColumnType._UNKNOWN_;
+			return FieldType._UNKNOWN_;
 		}
 
-		public static Column_REF GetRefInfo(TableSchema.Column column)
+		public static Field_REF GetRefInfo(TableSchema.Field field)
 		{
-			switch (column.m_type) {
-				case ColumnType.REF: {
-					return (Column_REF)column;
+			switch (field.m_type) {
+				case FieldType.REF: {
+					return (Field_REF)field;
 				}
-				case ColumnType.GROUP: {
-					Column_GROUP cast = (Column_GROUP)column;
-					if (cast.m_detailType.m_type == ColumnType.REF)
-						return (Column_REF)cast.m_detailType;
+				case FieldType.GROUP: {
+					Field_GROUP cast = (Field_GROUP)field;
+					if (cast.m_detailType.m_type == FieldType.REF)
+						return (Field_REF)cast.m_detailType;
 					break;
 				}
 			}
@@ -163,13 +163,13 @@ namespace StaticDB_Maker
 	{
 		public Table m_startTable = null;
 		public string m_targetTableName = "";
-		public string m_targetColumnName = "";
+		public string m_targetFieldName = "";
 		public OnFindArgs m_lastFindResult;
 
 		public struct OnFindArgs
 		{
 			public Table table;
-			public TableSchema.Column column;
+			public TableSchema.Field field;
 			public TableVerifier verifier;
 			public int number;
 			public bool isLast;
@@ -182,13 +182,13 @@ namespace StaticDB_Maker
 			List<string> refLog = new List<string>();
 			HashSet<string> refLogFinder = new HashSet<string>();
 			string table_name = m_targetTableName;
-			string column_name = m_targetColumnName;
+			string field_name = m_targetFieldName;
 
 			try {
 				bool loop = true;
 				for (int i = 1; loop; ++i) {
 					loop = false;
-					string refkey = table_name + '/' + column_name;
+					string refkey = table_name + '/' + field_name;
 					refLog.Add(refkey);
 					if (refLogFinder.Add(refkey) == false) {
 						throw new ParseError("detected recursive reference");
@@ -201,30 +201,30 @@ namespace StaticDB_Maker
 					if (false == verifier.Verify(Table.State.Step2_Complete_ID_Indexing)) {
 						throw new ParseError("fail verify, table:" + table_name);
 					}
-					var column = table.m_schema.FindColumn(column_name);
-					if (column == null) {
-						if (column_name.Length > 0) {
-							throw new ParseError(String.Format("{0} column does not exists in {1} table",
-								column_name, table_name));
+					var field = table.m_schema.FindField(field_name);
+					if (field == null) {
+						if (field_name.Length > 0) {
+							throw new ParseError(String.Format("{0} field does not exists in {1} table",
+								field_name, table_name));
 						}
-						column = table.m_schema.FindColumn(Config.ColName_ID_INT);
+						field = table.m_schema.FindField(Config.ColName_ID_INT);
 					}
-					else if (column.m_type == ColumnType.ID) {
-						Column_ID cast = (Column_ID)column;
-						if (cast.m_detailType == ColumnType.STR)
-							column = table.m_schema.FindColumn(Config.ColName_ID_INT);
+					else if (field.m_type == FieldType.ID) {
+						Field_ID cast = (Field_ID)field;
+						if (cast.m_detailType == FieldType.STR)
+							field = table.m_schema.FindField(Config.ColName_ID_INT);
 					}
 					else {
-						Column_REF next_ref = Common.GetRefInfo(column);
+						Field_REF next_ref = Common.GetRefInfo(field);
 						if (next_ref != null) {
 							table_name = next_ref.m_refTable;
-							column_name = next_ref.m_refColumn;
+							field_name = next_ref.m_refField;
 							loop = true;
 						}
 					}
 					m_startTable.m_refTables.Add(table.m_name);
 					m_lastFindResult.table = table;
-					m_lastFindResult.column = column;
+					m_lastFindResult.field = field;
 					m_lastFindResult.verifier = verifier;
 					m_lastFindResult.number = i;
 					m_lastFindResult.isLast = !loop;
@@ -249,9 +249,9 @@ namespace StaticDB_Maker
 		{
 			OnFind = (ReferenceFinder.OnFindArgs args) =>
 			{
-				if (args.column.m_type == ColumnType.GROUP) {
+				if (args.field.m_type == FieldType.GROUP) {
 					args.verifier.Verify(Table.State.Step5_Verified_GroupReferance);
-					var groups = ((Column_GROUP)args.column).m_groups;
+					var groups = ((Field_GROUP)args.field).m_groups;
 					uint groupID = 0;
 					bool isValidGroupID = false;
 					switch (m_ID.type) {
@@ -262,11 +262,11 @@ namespace StaticDB_Maker
 						}
 						case Data.Type.STR: {
 							string enum_name;
-							var next_ref = Common.GetRefInfo(args.column);
+							var next_ref = Common.GetRefInfo(args.field);
 							if (next_ref != null)
 								enum_name = Common.EnumName(next_ref.m_refTable, "ID");
 							else
-								enum_name = Common.EnumName(args.table.m_name, args.column.m_name);
+								enum_name = Common.EnumName(args.table.m_name, args.field.m_name);
 							EnumInfo ei;
 							if (EnumInfo.Enums.TryGetValue(enum_name, out ei)) {
 								groupID = ei.NameToNum[m_ID.ToString()];
@@ -307,13 +307,13 @@ namespace StaticDB_Maker
 
 					if (args.isLast) {
 						args.verifier.Verify(Table.State.Step4_Verified_NomalData);
-						if (args.column.m_type == ColumnType.ID)
-							m_result = args.column.Parse(record.ID_INT.ToString());
+						if (args.field.m_type == FieldType.ID)
+							m_result = args.field.Parse(record.ID_INT.ToString());
 						else
-							m_result = args.column.Parse(record[args.column.m_columnNumber].Source);
+							m_result = args.field.Parse(record[args.field.m_fieldNumber].Source);
 					}
 					else {
-						m_ID = DefaultParser.ID(record[args.column.m_columnNumber].Source);
+						m_ID = DefaultParser.ID(record[args.field.m_fieldNumber].Source);
 						if (m_ID.Err())
 							throw new ParseError(m_ID.errmsg);
 					}
@@ -339,14 +339,14 @@ namespace StaticDB_Maker
 
 	class TableSchema
 	{
-		public abstract class Column
+		public abstract class Field
 		{
 			public Table m_owner = null; 
-			public ColumnType m_type;
-			public int m_columnNumber = 0; // 소스상의 컬럼 번호
+			public FieldType m_type;
+			public int m_fieldNumber = 0; // 소스상의 컬럼 번호
 			public int m_lastErrorRow = 0;
 			public string m_name = "";
-			public int m_columnIndex = 0;
+			public int m_fieldIndex = 0;
 			public Parser Parse = DefaultParser.Unknown;
 			public TypeMapper TypeInfo = new TypeMapper();
 
@@ -354,7 +354,7 @@ namespace StaticDB_Maker
 		}
 
 		public Table m_owner = null;
-		public List<Column> m_columns = new List<Column>();
+		public List<Field> m_fields = new List<Field>();
 		public Dictionary<string, int> m_name2index = new Dictionary<string, int>();
 		public uint m_autoIncrID = 0;
 
@@ -363,24 +363,24 @@ namespace StaticDB_Maker
 			m_owner = owner;
 		}
 
-		public void RegisterColumn(Column column)
+		public void RegisterField(Field field)
 		{
-			column.m_columnIndex = m_columns.Count;
-			column.m_owner = m_owner;
-			m_columns.Add(column);
+			field.m_fieldIndex = m_fields.Count;
+			field.m_owner = m_owner;
+			m_fields.Add(field);
 		}
 
-		public Column FindColumn(int columnID)
+		public Field FindField(int fieldID)
 		{
-			return m_columns[columnID];
+			return m_fields[fieldID];
 		}
 
-		public Column FindColumn(string name)
+		public Field FindField(string name)
 		{
-			int columnID;
-			if (m_name2index.TryGetValue(name, out columnID) == false)
+			int fieldID;
+			if (m_name2index.TryGetValue(name, out fieldID) == false)
 				return null;
-			return m_columns[columnID];
+			return m_fields[fieldID];
 		}
 
 		public bool CheckSchema()
@@ -388,26 +388,26 @@ namespace StaticDB_Maker
 			// ID 타입이 하나 이하인지 체크
 			bool success = true;
 			{
-				List<Column> ID_INT = new List<Column>();
-				List<Column> ID_STR = new List<Column>();
-				foreach (var column in m_columns) {
-					if (column.m_type != ColumnType.ID)
+				List<Field> ID_INT = new List<Field>();
+				List<Field> ID_STR = new List<Field>();
+				foreach (var field in m_fields) {
+					if (field.m_type != FieldType.ID)
 						continue;
-					switch (((Column_ID)column).m_detailType) {
-						case ColumnType.INT: ID_INT.Add(column); break;
-						case ColumnType.STR: ID_STR.Add(column); break;
+					switch (((Field_ID)field).m_detailType) {
+						case FieldType.INT: ID_INT.Add(field); break;
+						case FieldType.STR: ID_STR.Add(field); break;
 					}
 				}
 
 				if (ID_INT.Count == 0)
-					RegisterColumn(new Column_ID(ColumnType.INT, false));
+					RegisterField(new Field_ID(FieldType.INT, false));
 				else if (ID_INT.Count > 1) {
 					success = false;
 					for (int i=1; i<ID_INT.Count; ++i) {
 						Common.OnError(
 							m_owner.m_name,
-							Config.ColumnTypeRow,
-							ID_INT[i].m_columnNumber,
+							Config.FieldTypeRow,
+							ID_INT[i].m_fieldNumber,
 							"duplicate ID.INT type");
 					}
 				}
@@ -417,8 +417,8 @@ namespace StaticDB_Maker
 					for (int i=1; i<ID_STR.Count; ++i) {
 						Common.OnError(
 							m_owner.m_name,
-							Config.ColumnTypeRow,
-							ID_STR[i].m_columnNumber,
+							Config.FieldTypeRow,
+							ID_STR[i].m_fieldNumber,
 							"duplicate ID.STR type");
 					}
 				}
@@ -427,33 +427,33 @@ namespace StaticDB_Maker
 				return false;
 
 			// 컬럼명 체크
-			foreach (var column in m_columns) {
+			foreach (var field in m_fields) {
 				try {
-					string e = Common.CheckNamingRule(column.m_name);
+					string e = Common.CheckNamingRule(field.m_name);
 					if (e.Length > 0) {
-						column.m_lastErrorRow = Config.ColumnNameRow;
+						field.m_lastErrorRow = Config.FieldNameRow;
 						throw new ParseError(e);
 					}
-					if (m_name2index.ContainsKey(column.m_name)) {
-						column.m_lastErrorRow = Config.ColumnNameRow;
-						throw new ParseError("dupicate column name " + column.m_name);
+					if (m_name2index.ContainsKey(field.m_name)) {
+						field.m_lastErrorRow = Config.FieldNameRow;
+						throw new ParseError("dupicate field name " + field.m_name);
 					}
-					m_name2index.Add(column.m_name, column.m_columnIndex);
+					m_name2index.Add(field.m_name, field.m_fieldIndex);
 				}
 				catch (ParseError e) {
 					success = false;
-					Common.OnError(m_owner.m_name, column.m_lastErrorRow, column.m_columnNumber, e.Message);
+					Common.OnError(m_owner.m_name, field.m_lastErrorRow, field.m_fieldNumber, e.Message);
 				}
 			}
 			if (success == false)
 				return false;
 
 			// 각 컬럼 별 추가적인 체크
-			foreach (var column in m_columns) {
-				string e = column.OnRegister(this);
+			foreach (var field in m_fields) {
+				string e = field.OnRegister(this);
 				if (e.Length > 0) {
 					success = false;
-					Common.OnError(m_owner.m_name, column.m_lastErrorRow, column.m_columnNumber, e);
+					Common.OnError(m_owner.m_name, field.m_lastErrorRow, field.m_fieldNumber, e);
 				}
 			}
 			return success;
@@ -461,19 +461,19 @@ namespace StaticDB_Maker
 	}
 
 
-	class Column_Nomal : TableSchema.Column
+	class Field_Nomal : TableSchema.Field
 	{
-		public Column_Nomal(ColumnType type)
+		public Field_Nomal(FieldType type)
 		{
 			m_type = type;
 			switch (m_type) {
-				case ColumnType.INT: {
+				case FieldType.INT: {
 					Parse = DefaultParser.Long;
 					TypeInfo = TypeMapper.byFBS("long");
 					break;
 				}
-				case ColumnType.STR:
-				case ColumnType.COMMENT: {
+				case FieldType.STR:
+				case FieldType.COMMENT: {
 					Parse = DefaultParser.String;
 					TypeInfo = TypeMapper.byFBS("string");
 					break;
@@ -489,21 +489,21 @@ namespace StaticDB_Maker
 		}
 	}
 
-	class Column_ID : TableSchema.Column
+	class Field_ID : TableSchema.Field
 	{
-		public ColumnType m_detailType = ColumnType._UNKNOWN_;
+		public FieldType m_detailType = FieldType._UNKNOWN_;
 		public bool m_isTypeName = false;
-		public Column_ID(ColumnType detailType, bool isTypeName)
+		public Field_ID(FieldType detailType, bool isTypeName)
 		{
-			m_type = ColumnType.ID;
+			m_type = FieldType.ID;
 			m_detailType = detailType;
 			m_isTypeName = isTypeName;
 			switch (m_detailType) {
-				case ColumnType.INT: {
+				case FieldType.INT: {
 					m_name = Config.ColName_ID_INT;
 					break;
 				}
-				case ColumnType.STR: {
+				case FieldType.STR: {
 					m_name = Config.ColName_ID_STR;
 					break;
 				}
@@ -516,12 +516,12 @@ namespace StaticDB_Maker
 		public override string OnRegister(TableSchema schema)
 		{
 			switch (m_detailType) {
-				case ColumnType.INT: {
+				case FieldType.INT: {
 					Parse = DefaultParser.ID_INT;
 					TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
-				case ColumnType.STR: {
+				case FieldType.STR: {
 					Parse = DefaultParser.ID_STR;
 					if (m_isTypeName)
 						TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, "ID"));
@@ -534,20 +534,20 @@ namespace StaticDB_Maker
 		}
 	}
 
-	class Column_REF : TableSchema.Column
+	class Field_REF : TableSchema.Field
 	{
 		public string m_refTable = "";
-		public string m_refColumn = "";
-		public Column_REF(string refTable, string refColumn = "")
+		public string m_refField = "";
+		public Field_REF(string refTable, string refField = "")
 		{
-			m_type = ColumnType.REF;
+			m_type = FieldType.REF;
 			m_refTable = refTable;
-			m_refColumn = refColumn;
+			m_refField = refField;
 		}
 		public override string OnRegister(TableSchema schema)
 		{
 			if (Config.TableID.ContainsKey(m_refTable) == false) {
-				m_lastErrorRow = Config.ColumnTypeRow;
+				m_lastErrorRow = Config.FieldTypeRow;
 				return "table " + m_refTable + " does not exists";
 			}
 			Parse = (string src) =>
@@ -555,21 +555,21 @@ namespace StaticDB_Maker
 				PullReferenceData reference = new PullReferenceData();
 				reference.m_startTable = m_owner;
 				reference.m_targetTableName = m_refTable;
-				reference.m_targetColumnName = m_refColumn;
+				reference.m_targetFieldName = m_refField;
 				return reference.Parse(src);
 			};
 			return "";
 		}
 	}
 	
-	class Column_GROUP : TableSchema.Column
+	class Field_GROUP : TableSchema.Field
 	{
-		public TableSchema.Column m_detailType = null;
+		public TableSchema.Field m_detailType = null;
 		public bool m_isTypeName = false;
 		public HashSet<uint> m_groups = new HashSet<uint>();
-		public Column_GROUP(TableSchema.Column detailType, bool isTypeName)
+		public Field_GROUP(TableSchema.Field detailType, bool isTypeName)
 		{
-			m_type = ColumnType.GROUP;
+			m_type = FieldType.GROUP;
 			m_detailType = detailType;
 			m_isTypeName = isTypeName;
 		}
@@ -578,7 +578,7 @@ namespace StaticDB_Maker
 			m_detailType.m_owner = m_owner;
 			m_detailType.m_name = m_name;
 			switch (m_detailType.m_type) {
-				case ColumnType.INT: {
+				case FieldType.INT: {
 					Parse = (string src) =>
 					{
 						var data = DefaultParser.ID_INT(src);
@@ -591,7 +591,7 @@ namespace StaticDB_Maker
 					TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
-				case ColumnType.STR: {
+				case FieldType.STR: {
 					Parse = (string src) =>
 					{
 						var data = DefaultParser.ID_STR(src);
@@ -618,10 +618,10 @@ namespace StaticDB_Maker
 						TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
-				case ColumnType.REF: {
+				case FieldType.REF: {
 					Parse = (string src) =>
 					{
-						Column_REF refType = (Column_REF)m_detailType;
+						Field_REF refType = (Field_REF)m_detailType;
 						var data = refType.Parse(src);
 						if (data.Err())
 							return data;
@@ -632,7 +632,7 @@ namespace StaticDB_Maker
 					break;
 				}
 				default: {
-					m_lastErrorRow = Config.ColumnTypeRow;
+					m_lastErrorRow = Config.FieldTypeRow;
 					return "invalid detail GROUP type : " + m_detailType.ToString();
 				}
 			}
@@ -640,13 +640,13 @@ namespace StaticDB_Maker
 		}
 	}
 
-	class Column_ORDER : TableSchema.Column
+	class Field_ORDER : TableSchema.Field
 	{
 		public string m_groupName;
-		public Column_GROUP m_group = null;
-		public Column_ORDER(string groupName)
+		public Field_GROUP m_group = null;
+		public Field_ORDER(string groupName)
 		{
-			m_type = ColumnType.ORDER;
+			m_type = FieldType.ORDER;
 			m_groupName = groupName;
 			Parse = DefaultParser.Long;
 			TypeInfo = TypeMapper.byFBS("long");
@@ -654,24 +654,24 @@ namespace StaticDB_Maker
 		public override string OnRegister(TableSchema schema)
 		{
 			if (m_groupName.Length > 0) {
-				TableSchema.Column column = schema.FindColumn(m_groupName);
-				if (column == null)
+				TableSchema.Field field = schema.FindField(m_groupName);
+				if (field == null)
 					return "invalid group name : " + m_groupName;
-				if (column is Column_GROUP == false)
+				if (field is Field_GROUP == false)
 					return m_groupName + " is not GROUP";
-				m_group = (Column_GROUP)column;
+				m_group = (Field_GROUP)field;
 			}
 			return "";
 		}
 	}
 
-	class Column_WEIGHT : TableSchema.Column
+	class Field_WEIGHT : TableSchema.Field
 	{
 		public string m_groupName;
-		public Column_GROUP m_group = null;
-		public Column_WEIGHT(string groupName)
+		public Field_GROUP m_group = null;
+		public Field_WEIGHT(string groupName)
 		{
-			m_type = ColumnType.WEIGHT;
+			m_type = FieldType.WEIGHT;
 			m_groupName = groupName;
 			Parse = DefaultParser.Uint;
 			TypeInfo = TypeMapper.byFBS("uint");
@@ -679,30 +679,30 @@ namespace StaticDB_Maker
 		public override string OnRegister(TableSchema schema)
 		{
 			if (m_groupName.Length > 0) {
-				TableSchema.Column column = schema.FindColumn(m_groupName);
-				if (column == null)
+				TableSchema.Field field = schema.FindField(m_groupName);
+				if (field == null)
 					return "invalid group name : " + m_groupName;
-				if (column is Column_GROUP == false)
+				if (field is Field_GROUP == false)
 					return m_groupName + " is not GROUP";
-				m_group = (Column_GROUP)column;
+				m_group = (Field_GROUP)field;
 			}
 			return "";
 		}
 	}
 
-	class Column_RATE : TableSchema.Column
+	class Field_RATE : TableSchema.Field
 	{
 		public long m_denominator;
-		public Column_RATE(long denominator)
+		public Field_RATE(long denominator)
 		{
-			m_type = ColumnType.RATE;
+			m_type = FieldType.RATE;
 			m_denominator = denominator;
 			TypeInfo = TypeMapper.byFBS("double");
 		}
 		public override string OnRegister(TableSchema schema)
 		{
 			if (m_denominator <= 0) {
-				m_lastErrorRow = Config.ColumnTypeRow;
+				m_lastErrorRow = Config.FieldTypeRow;
 				return "invalid denominator value : " + m_denominator;
 			}
 			Parse = (string src) =>

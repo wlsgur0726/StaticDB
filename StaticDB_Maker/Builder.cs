@@ -288,19 +288,19 @@ namespace StaticDB_Maker
 			m_verifier = verifier;
 		}
 
-		public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column);
-		public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
+		public delegate void Loop_FBS_Fields_Delegate(TableSchema.Field field);
+		public static void Loop_FBS_Fields(Table table, Loop_FBS_Fields_Delegate f)
 		{
-			foreach (var column in table.m_schema.m_columns) {
-				switch (column.m_type) {
-					case ColumnType.ID: {
-						Column_ID cast = (Column_ID)column;
-						if (cast.m_detailType==ColumnType.STR && cast.m_isTypeName==false)
+			foreach (var field in table.m_schema.m_fields) {
+				switch (field.m_type) {
+					case FieldType.ID: {
+						Field_ID cast = (Field_ID)field;
+						if (cast.m_detailType==FieldType.STR && cast.m_isTypeName==false)
 							continue;
 						break;
 					}
 				}
-				f(column);
+				f(field);
 			}
 		}
 
@@ -313,11 +313,11 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("enum TableID_{0} : uint {{ Value = {1} }}", m_table.m_name, Config.TableID[m_table.m_name]);
 			fbs.Print("");
-			fbs.Print("enum {0}_Column : uint", m_table.m_name);
+			fbs.Print("enum {0}_Field : uint", m_table.m_name);
 			fbs.Print("{");
-			Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+			Loop_FBS_Fields(m_table, (TableSchema.Field field) =>
 			{
-				fbs.Print("  _{0},", column.m_name);
+				fbs.Print("  _{0},", field.m_name);
 			});
 			fbs.Print("}");
 			fbs.Print("");
@@ -343,12 +343,12 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("table {0}_FBS", m_table.m_name);
 			fbs.Print("{");
-			Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+			Loop_FBS_Fields(m_table, (TableSchema.Field field) =>
 			{
-				var type = column.TypeInfo;
-				if (column.m_type==ColumnType.ID && ((Column_ID)column).m_detailType==ColumnType.INT)
+				var type = field.TypeInfo;
+				if (field.m_type==FieldType.ID && ((Field_ID)field).m_detailType==FieldType.INT)
 					type = TypeMapper.byFBS("uint");
-				string print = String.Format("  _{0} : {1}", column.m_name, type.fbs);
+				string print = String.Format("  _{0} : {1}", field.m_name, type.fbs);
 				if (type.IsEnum()) {
 					var first = EnumInfo.Enums[type.fbs].NumToName.First();
 					print += " = _" + first.Value;
@@ -390,17 +390,17 @@ namespace StaticDB_Maker
 			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 				Record record = m_table.m_records[i];
 				string line = " {_ID_INT:" + record.ID_INT + ',';
-				Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+				Loop_FBS_Fields(m_table, (TableSchema.Field field) =>
 				{
-					if (column.m_type == ColumnType.ID) {
-						if (((Column_ID)column).m_detailType == ColumnType.INT)
+					if (field.m_type == FieldType.ID) {
+						if (((Field_ID)field).m_detailType == FieldType.INT)
 							return;
 					}
-					bool isStr = column.TypeInfo.fbs == "string";
-					line += '_' + column.m_name + ':';
+					bool isStr = field.TypeInfo.fbs == "string";
+					line += '_' + field.m_name + ':';
 					if (isStr)
 						line += '"';
-					line += record[column.m_columnNumber].ParsedData.ToString();
+					line += record[field.m_fieldNumber].ParsedData.ToString();
 					if (isStr)
 						line += '"';
 					line += ",";

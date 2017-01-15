@@ -13,32 +13,32 @@ namespace StaticDB_Maker
 
 		public static void GenTableCode_CS(Table table)
 		{
-			List<Column_REF> ref_list = new List<Column_REF>();
-			List<Column_GROUP> group_list = new List<Column_GROUP>();
-			List<Column_WEIGHT> weight_list = new List<Column_WEIGHT>();
-			List<Column_ORDER> order_list = new List<Column_ORDER>();
-			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			List<Field_REF> ref_list = new List<Field_REF>();
+			List<Field_GROUP> group_list = new List<Field_GROUP>();
+			List<Field_WEIGHT> weight_list = new List<Field_WEIGHT>();
+			List<Field_ORDER> order_list = new List<Field_ORDER>();
+			TableBuilder.Loop_FBS_Fields(table, (TableSchema.Field field) =>
 			{
-				switch (column.m_type) {
-					case ColumnType.REF: {
-						Column_REF cast = (Column_REF)column;
-						if (cast.m_refColumn=="" || cast.m_refColumn=="ID_INT" || cast.m_refColumn=="ID_STR")
+				switch (field.m_type) {
+					case FieldType.REF: {
+						Field_REF cast = (Field_REF)field;
+						if (cast.m_refField=="" || cast.m_refField=="ID_INT" || cast.m_refField=="ID_STR")
 							ref_list.Add(cast);
 						break;
 					}
-					case ColumnType.GROUP: {
-						Column_GROUP cast = (Column_GROUP)column;
+					case FieldType.GROUP: {
+						Field_GROUP cast = (Field_GROUP)field;
 						group_list.Add(cast);
-						if (cast.m_detailType.m_type == ColumnType.REF)
-							ref_list.Add((Column_REF)cast.m_detailType);
+						if (cast.m_detailType.m_type == FieldType.REF)
+							ref_list.Add((Field_REF)cast.m_detailType);
 						break;
 					}
-					case ColumnType.WEIGHT: {
-						weight_list.Add((Column_WEIGHT)column);
+					case FieldType.WEIGHT: {
+						weight_list.Add((Field_WEIGHT)field);
 						break;
 					}
-					case ColumnType.ORDER: {
-						order_list.Add((Column_ORDER)column);
+					case FieldType.ORDER: {
+						order_list.Add((Field_ORDER)field);
 						break;
 					}
 				}
@@ -56,12 +56,12 @@ namespace StaticDB_Maker
 				if (ID_Enum.Build == false)
 					ID_Enum = null;
 			}
-			foreach (var column in group_list) {
+			foreach (var field in group_list) {
 				string ID_type = ID_Enum == null ? "uint" : ID_Enum.EnumName;
-				file.Print("  using _{0}_Group = Dictionary<{1}, {2}_Record>;", column.m_name, ID_type, table.m_name);
+				file.Print("  using _{0}_Group = Dictionary<{1}, {2}_Record>;", field.m_name, ID_type, table.m_name);
 			}
-			foreach (var column in order_list) {
-				file.Print("  using _{0}_Order = SortedDictionary<long, {1}_Record>;", column.m_name, table.m_name);
+			foreach (var field in order_list) {
+				file.Print("  using _{0}_Order = SortedDictionary<long, {1}_Record>;", field.m_name, table.m_name);
 			}
 			file.Print("");
 			file.Print("");
@@ -72,77 +72,77 @@ namespace StaticDB_Maker
 			file.Print("    public {0}_Record({0}_FBS record) {{ m_record = record; }}", table.m_name);
 			file.Print("    public {0}_FBS get {{ get {{ return m_record; }} }}", table.m_name);
 			file.Print("");
-			foreach (var column in ref_list)
-				file.Print("    public {0}_Record Ref_{1} {{ get {{ return m_ref.m_{1}; }} }}", column.m_refTable, column.m_name);
+			foreach (var field in ref_list)
+				file.Print("    public {0}_Record Ref_{1} {{ get {{ return m_ref.m_{1}; }} }}", field.m_refTable, field.m_name);
 			file.Print("");
-			file.Print("    public long GetInt(uint column) {{ return GetInt(({0}_Column)column); }}", table.m_name);
-			file.Print("    public long GetInt({0}_Column column)", table.m_name);
+			file.Print("    public long GetInt(uint field) {{ return GetInt(({0}_Field)field); }}", table.m_name);
+			file.Print("    public long GetInt({0}_Field field)", table.m_name);
 			file.Print("    {");
-			file.Print("      switch(column) {");
-			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			file.Print("      switch(field) {");
+			TableBuilder.Loop_FBS_Fields(table, (TableSchema.Field field) =>
 			{
-				string prop = column.m_name;
-				switch (column.m_type) {
-					case ColumnType.STR:
-					case ColumnType.RATE:
+				string prop = field.m_name;
+				switch (field.m_type) {
+					case FieldType.STR:
+					case FieldType.RATE:
 						return;
-					case ColumnType.ID: {
-						prop = column.m_name.Replace("_", "");
+					case FieldType.ID: {
+						prop = field.m_name.Replace("_", "");
 						break;
 					}
 				}
-				file.Print("        case {0}_Column._{1}:", table.m_name, column.m_name);
+				file.Print("        case {0}_Field._{1}:", table.m_name, field.m_name);
 				file.Print("          return (long)get._{0};", prop);
 			});
 			file.Print("      }");
-			file.Print("      throw new ArgumentException(\"invalid column : \" + column.ToString());");
+			file.Print("      throw new ArgumentException(\"invalid field : \" + field.ToString());");
 			file.Print("    }");
 			file.Print("");
-			file.Print("    public string GetStr(uint column) {{ return GetStr(({0}_Column)column); }}", table.m_name);
-			file.Print("    public string GetStr({0}_Column column)", table.m_name);
+			file.Print("    public string GetStr(uint field) {{ return GetStr(({0}_Field)field); }}", table.m_name);
+			file.Print("    public string GetStr({0}_Field field)", table.m_name);
 			file.Print("    {");
-			file.Print("      switch(column) {");
-			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			file.Print("      switch(field) {");
+			TableBuilder.Loop_FBS_Fields(table, (TableSchema.Field field) =>
 			{
-				string prop = column.m_type!=ColumnType.ID ? column.m_name : column.m_name.Replace("_", "");
+				string prop = field.m_type!=FieldType.ID ? field.m_name : field.m_name.Replace("_", "");
 				string ret;
-				if (column.TypeInfo.fbs == "string")
-					ret = String.Format("get._{0}", column.m_name);
+				if (field.TypeInfo.fbs == "string")
+					ret = String.Format("get._{0}", field.m_name);
 				else
 					ret = String.Format("get._{0}.ToString()", prop);
-				file.Print("        case {0}_Column._{1}:", table.m_name, column.m_name);
+				file.Print("        case {0}_Field._{1}:", table.m_name, field.m_name);
 				file.Print("          return {0};", ret);
 			});
 			file.Print("      }");
-			file.Print("      throw new ArgumentException(\"invalid column : \" + column.ToString());");
+			file.Print("      throw new ArgumentException(\"invalid field : \" + field.ToString());");
 			file.Print("    }");
 			file.Print("");
-			file.Print("    public double GetReal(uint column) {{ return GetReal(({0}_Column)column); }}", table.m_name);
-			file.Print("    public double GetReal({0}_Column column)", table.m_name);
+			file.Print("    public double GetReal(uint field) {{ return GetReal(({0}_Field)field); }}", table.m_name);
+			file.Print("    public double GetReal({0}_Field field)", table.m_name);
 			file.Print("    {");
-			file.Print("      switch(column) {");
-			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			file.Print("      switch(field) {");
+			TableBuilder.Loop_FBS_Fields(table, (TableSchema.Field field) =>
 			{
-				string prop = column.m_name;
-				switch (column.m_type) {
-					case ColumnType.STR:
+				string prop = field.m_name;
+				switch (field.m_type) {
+					case FieldType.STR:
 						return;
-					case ColumnType.ID: {
-						prop = column.m_name.Replace("_", "");
+					case FieldType.ID: {
+						prop = field.m_name.Replace("_", "");
 						break;
 					}
 				}
-				file.Print("        case {0}_Column._{1}:", table.m_name, column.m_name);
+				file.Print("        case {0}_Field._{1}:", table.m_name, field.m_name);
 				file.Print("          return (double)get._{0};", prop);
 			});
 			file.Print("      }");
-			file.Print("      throw new ArgumentException(\"invalid column : \" + column.ToString());");
+			file.Print("      throw new ArgumentException(\"invalid field : \" + field.ToString());");
 			file.Print("    }");
 			file.Print("");
 			file.Print("    internal struct Ref");
 			file.Print("    {");
-			foreach (var column in ref_list)
-				file.Print("      public {0}_Record m_{1};", column.m_refTable, column.m_name);
+			foreach (var field in ref_list)
+				file.Print("      public {0}_Record m_{1};", field.m_refTable, field.m_name);
 			file.Print("    }");
 			file.Print("    private Ref m_ref;");
 			file.Print("    internal void InitRef(Ref r) { m_ref = r; }");
@@ -157,55 +157,55 @@ namespace StaticDB_Maker
 				file.Print("    public {0}_Record this[{1} ID] {{ get {{ return base.GetRecord((uint)ID); }} }}", table.m_name, ID_Enum.EnumName);
 				file.Print("");
 			}
-			foreach (var column in group_list) {
-				string group_type = column.TypeInfo.types[TypeMapper.Type.CS];
-				if (column.TypeInfo.IsEnum())
-					file.Print("    public _{0}_Group _{0}(uint group_ID) {{ return _{0}(({1})group_ID); }}", column.m_name, group_type);
-				file.Print("    public _{0}_Group _{0}({1} group_ID) {{ return m_{0}[group_ID]; }}", column.m_name, group_type);
+			foreach (var field in group_list) {
+				string group_type = field.TypeInfo.types[TypeMapper.Type.CS];
+				if (field.TypeInfo.IsEnum())
+					file.Print("    public _{0}_Group _{0}(uint group_ID) {{ return _{0}(({1})group_ID); }}", field.m_name, group_type);
+				file.Print("    public _{0}_Group _{0}({1} group_ID) {{ return m_{0}[group_ID]; }}", field.m_name, group_type);
 				file.Print("");
 			}
-			foreach (var column in weight_list) {
-				if (column.m_group == null)
-					file.Print("    public {0}_Record Pick_{1} {{ get {{ return m_{1}.Pick; }} }}", table.m_name, column.m_name);
+			foreach (var field in weight_list) {
+				if (field.m_group == null)
+					file.Print("    public {0}_Record Pick_{1} {{ get {{ return m_{1}.Pick; }} }}", table.m_name, field.m_name);
 				else {
-					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
-					if (column.m_group.TypeInfo.IsEnum())
-						file.Print("    public {0}_Record Pick_{1}(uint group_ID) {{ return Pick_{1}(({2})group_ID); }}", table.m_name, column.m_name, group_type);
-					file.Print("    public {0}_Record Pick_{1}({2} group_ID) {{ return m_{1}[group_ID].Pick; }}", table.m_name, column.m_name, group_type);
+					string group_type = field.m_group.TypeInfo.types[TypeMapper.Type.CS];
+					if (field.m_group.TypeInfo.IsEnum())
+						file.Print("    public {0}_Record Pick_{1}(uint group_ID) {{ return Pick_{1}(({2})group_ID); }}", table.m_name, field.m_name, group_type);
+					file.Print("    public {0}_Record Pick_{1}({2} group_ID) {{ return m_{1}[group_ID].Pick; }}", table.m_name, field.m_name, group_type);
 				}
 				file.Print("");
 			}
-			foreach (var column in order_list) {
-				if (column.m_group == null)
-					file.Print("    public _{0}_Order _{0} {{ get {{ return m_{0}; }} }}", column.m_name);
+			foreach (var field in order_list) {
+				if (field.m_group == null)
+					file.Print("    public _{0}_Order _{0} {{ get {{ return m_{0}; }} }}", field.m_name);
 				else {
-					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
-					if (column.m_group.TypeInfo.IsEnum())
-						file.Print("    public _{0}_Order _{0}(uint group_ID) {{ return _{0}(({1})group_ID); }}", column.m_name, group_type);
-					file.Print("    public _{0}_Order _{0}({1} group_ID) {{ return m_{0}[group_ID]; }}", column.m_name, group_type);
+					string group_type = field.m_group.TypeInfo.types[TypeMapper.Type.CS];
+					if (field.m_group.TypeInfo.IsEnum())
+						file.Print("    public _{0}_Order _{0}(uint group_ID) {{ return _{0}(({1})group_ID); }}", field.m_name, group_type);
+					file.Print("    public _{0}_Order _{0}({1} group_ID) {{ return m_{0}[group_ID]; }}", field.m_name, group_type);
 				}
 				file.Print("");
 			}
 			file.Print("");
-			foreach (var column in group_list) {
+			foreach (var field in group_list) {
 				string ID_type = ID_Enum == null ? "uint" : ID_Enum.EnumName;
-				string group_type = column.TypeInfo.types[TypeMapper.Type.CS];
-				file.Print("    private Dictionary<{0}, _{1}_Group> m_{1} = new Dictionary<{0}, _{1}_Group>();", group_type, column.m_name);
+				string group_type = field.TypeInfo.types[TypeMapper.Type.CS];
+				file.Print("    private Dictionary<{0}, _{1}_Group> m_{1} = new Dictionary<{0}, _{1}_Group>();", group_type, field.m_name);
 			}
-			foreach (var column in weight_list) {
-				if (column.m_group == null)
-					file.Print("    private StaticDB.Weight<{0}_Record> m_{1} = new StaticDB.Weight<{0}_Record>();", table.m_name, column.m_name);
+			foreach (var field in weight_list) {
+				if (field.m_group == null)
+					file.Print("    private StaticDB.Weight<{0}_Record> m_{1} = new StaticDB.Weight<{0}_Record>();", table.m_name, field.m_name);
 				else {
-					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
-					file.Print("    private Dictionary<{0}, StaticDB.Weight<{1}_Record>> m_{2} = new Dictionary<{0}, StaticDB.Weight<{1}_Record>>();", group_type, table.m_name, column.m_name);
+					string group_type = field.m_group.TypeInfo.types[TypeMapper.Type.CS];
+					file.Print("    private Dictionary<{0}, StaticDB.Weight<{1}_Record>> m_{2} = new Dictionary<{0}, StaticDB.Weight<{1}_Record>>();", group_type, table.m_name, field.m_name);
 				}
 			}
-			foreach (var column in order_list) {
-				if (column.m_group == null)
-					file.Print("    private _{0}_Order m_{0} = new _{0}_Order();", column.m_name);
+			foreach (var field in order_list) {
+				if (field.m_group == null)
+					file.Print("    private _{0}_Order m_{0} = new _{0}_Order();", field.m_name);
 				else {
-					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
-					file.Print("    private Dictionary<{0}, _{1}_Order> m_{1} = new Dictionary<{0}, _{1}_Order>();", group_type, column.m_name);
+					string group_type = field.m_group.TypeInfo.types[TypeMapper.Type.CS];
+					file.Print("    private Dictionary<{0}, _{1}_Order> m_{1} = new Dictionary<{0}, _{1}_Order>();", group_type, field.m_name);
 				}
 			}
 			file.Print("");
@@ -228,29 +228,29 @@ namespace StaticDB_Maker
 			file.Print("        var record = it.Value;");
 			file.Print("");
 			file.Print("        {0}_Record.Ref _ref;", table.m_name);
-			foreach (var column in ref_list) {
-				file.Print("        {{ var table = ({0}_Table)tables[(uint)TableID_{0}.Value];", column.m_refTable);
-				file.Print("          _ref.m_{0} = table[record.get._{0}]; }}", column.m_name);
+			foreach (var field in ref_list) {
+				file.Print("        {{ var table = ({0}_Table)tables[(uint)TableID_{0}.Value];", field.m_refTable);
+				file.Print("          _ref.m_{0} = table[record.get._{0}]; }}", field.m_name);
 			}
 			file.Print("        record.InitRef(_ref);");
 			file.Print("");
-			foreach (var column in group_list) {
+			foreach (var field in group_list) {
 				string ID_type = ID_Enum == null ? "uint" : ID_Enum.EnumName;
-				file.Print("        m_{0}[record.get._{0}][({1})record.get._IDINT] = record;", column.m_name, ID_type);
+				file.Print("        m_{0}[record.get._{0}][({1})record.get._IDINT] = record;", field.m_name, ID_type);
 				file.Print("");
 			}
-			foreach (var column in weight_list) {
-				if (column.m_group == null)
-					file.Print("        m_{0}.Add(record.get._{0}, record);", column.m_name);
+			foreach (var field in weight_list) {
+				if (field.m_group == null)
+					file.Print("        m_{0}.Add(record.get._{0}, record);", field.m_name);
 				else
-					file.Print("        m_{0}[record.get._{1}].Add(record.get._{0}, record);", column.m_name, column.m_group.m_name);
+					file.Print("        m_{0}[record.get._{1}].Add(record.get._{0}, record);", field.m_name, field.m_group.m_name);
 				file.Print("");
 			}
-			foreach (var column in order_list) {
-				if (column.m_group == null)
-					file.Print("        m_{0}[record.get._{0}] = record;", column.m_name);
+			foreach (var field in order_list) {
+				if (field.m_group == null)
+					file.Print("        m_{0}[record.get._{0}] = record;", field.m_name);
 				else
-					file.Print("        m_{0}[record.get._{1}][record.get._{0}] = record;", column.m_name, column.m_group.m_name);
+					file.Print("        m_{0}[record.get._{1}][record.get._{0}] = record;", field.m_name, field.m_group.m_name);
 				file.Print("");
 			}
 			file.Print("      }");

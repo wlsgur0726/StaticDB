@@ -114,7 +114,7 @@ namespace StaticDB_Maker
 	{
 		Table m_table;
 		int m_columnCount = -1;
-		List<bool> m_commentColumns = new List<bool>();
+		List<bool> m_commentFields = new List<bool>();
 
 
 		public TableVerifier(Table table)
@@ -135,13 +135,13 @@ namespace StaticDB_Maker
 				int row = m_table.m_records.Count + 1;
 				if (row == 1) {
 					foreach (string s in src)
-						m_commentColumns.Add(Common.FindColumnType(s) == ColumnType.COMMENT);
+						m_commentFields.Add(Common.FindFieldType(s) == FieldType.COMMENT);
 				}
 
 				Record record = new Record(row);
 				bool emptyLine = true;
 				for (int i=0; i<src.Length; ++i) {
-					if (m_commentColumns[i])
+					if (m_commentFields[i])
 						continue;
 					src[i] = src[i].Trim();
 					if (src[i].Length > 0) {
@@ -152,7 +152,7 @@ namespace StaticDB_Maker
 				if (emptyLine)
 					break;
 				for (int i=0; i<src.Length; ++i)
-					record.Add(new Cell(row, i+1, m_commentColumns[i] ? "" : src[i]));
+					record.Add(new Cell(row, i+1, m_commentFields[i] ? "" : src[i]));
 
 				// 공백 제거
 				int dst = m_columnCount < 0 ? 0 : m_columnCount;
@@ -168,7 +168,7 @@ namespace StaticDB_Maker
 				// 컬럼 수가 일관적인지 체크
 				if (m_columnCount != record.Count) {
 					string errmsg = String.Format(
-						"unexpected column count, line:{0}, expect:{1}, count:{2}, {3}",
+						"unexpected field count, row:{0}, expect:{1}, count:{2}, {3}",
 						row, m_columnCount, record.Count, filePath);
 					throw new ParseError(errmsg);
 				}
@@ -182,10 +182,10 @@ namespace StaticDB_Maker
 		public bool ParseSchema(Table table)
 		{
 			bool fail = false;
-			Record type_record = m_table.m_records[Config.ColumnTypeRow - 1];
-			Record name_record = m_table.m_records[Config.ColumnNameRow - 1];
+			Record type_record = m_table.m_records[Config.FieldTypeRow - 1];
+			Record name_record = m_table.m_records[Config.FieldNameRow - 1];
 			for (int col=1; col<=m_columnCount; ++col) {
-				if (m_commentColumns[col-1])
+				if (m_commentFields[col-1])
 					continue;
 				try {
 					string[] type_tokens = type_record[col].Source.Split('.');
@@ -193,46 +193,46 @@ namespace StaticDB_Maker
 					if (type_tokens.Length == 0) {
 						throw new ParseError("missing type");
 					}
-					TableSchema.Column col_info = null;
-					ColumnType columnType = Common.FindColumnType(type_tokens[0]);
-					switch (columnType) {
-						case ColumnType.INT:
-						case ColumnType.STR: {
-							col_info = new Column_Nomal(columnType);
+					TableSchema.Field col_info = null;
+					FieldType fieldType = Common.FindFieldType(type_tokens[0]);
+					switch (fieldType) {
+						case FieldType.INT:
+						case FieldType.STR: {
+							col_info = new Field_Nomal(fieldType);
 							break;
 						}
-						case ColumnType.ID: {
+						case FieldType.ID: {
 							if (type_tokens.Length <= 1)
 								throw new ParseError("missing detail type");
-							ColumnType detailType = Common.FindColumnType(type_tokens[1]);
-							bool isTypeName = detailType==ColumnType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
-							col_info = new Column_ID(detailType, isTypeName);
+							FieldType detailType = Common.FindFieldType(type_tokens[1]);
+							bool isTypeName = detailType==FieldType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
+							col_info = new Field_ID(detailType, isTypeName);
 							break;
 						}
-						case ColumnType.REF: {
+						case FieldType.REF: {
 							if (type_tokens.Length <= 1)
 								throw new ParseError("missing table name");
 							else if (type_tokens.Length <= 2)
-								col_info = new Column_REF(type_tokens[1]);
+								col_info = new Field_REF(type_tokens[1]);
 							else if (type_tokens.Length <= 3)
-								col_info = new Column_REF(type_tokens[1], type_tokens[2]);
+								col_info = new Field_REF(type_tokens[1], type_tokens[2]);
 							break;
 						}
-						case ColumnType.GROUP: {
+						case FieldType.GROUP: {
 							if (type_tokens.Length <= 1)
 								throw new ParseError("missing detail type");
-							ColumnType detailType = Common.FindColumnType(type_tokens[1]);
+							FieldType detailType = Common.FindFieldType(type_tokens[1]);
 							switch (detailType) {
-								case ColumnType.INT:
-								case ColumnType.STR: {
-									bool isTypeName = detailType==ColumnType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
-									col_info = new Column_GROUP(new Column_Nomal(detailType), isTypeName);
+								case FieldType.INT:
+								case FieldType.STR: {
+									bool isTypeName = detailType==FieldType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
+									col_info = new Field_GROUP(new Field_Nomal(detailType), isTypeName);
 									break;
 								}
-								case ColumnType.REF: {
+								case FieldType.REF: {
 									if (type_tokens.Length <= 2)
 										throw new ParseError("missing table name");
-									col_info = new Column_GROUP(new Column_REF(type_tokens[2]), false);
+									col_info = new Field_GROUP(new Field_REF(type_tokens[2]), false);
 									break;
 								}
 								default: {
@@ -241,29 +241,29 @@ namespace StaticDB_Maker
 							}
 							break;
 						}
-						case ColumnType.ORDER: {
+						case FieldType.ORDER: {
 							if (type_tokens.Length <= 1)
-								col_info = new Column_ORDER("");
+								col_info = new Field_ORDER("");
 							else
-								col_info = new Column_ORDER(type_tokens[1]);
+								col_info = new Field_ORDER(type_tokens[1]);
 							break;
 						}
-						case ColumnType.WEIGHT: {
+						case FieldType.WEIGHT: {
 							if (type_tokens.Length <= 1)
-								col_info = new Column_WEIGHT("");
+								col_info = new Field_WEIGHT("");
 							else
-								col_info = new Column_WEIGHT(type_tokens[1]);
+								col_info = new Field_WEIGHT(type_tokens[1]);
 							break;
 						}
-						case ColumnType.RATE: {
+						case FieldType.RATE: {
 							if (type_tokens.Length <= 1)
 								throw new ParseError("missing denominator");
 							long denominator = 0;
 							long.TryParse(type_tokens[1], out denominator);
-							col_info = new Column_RATE(denominator);
+							col_info = new Field_RATE(denominator);
 							break;
 						}
-						case ColumnType.COMMENT: {
+						case FieldType.COMMENT: {
 							// ignore
 							continue;
 						}
@@ -271,14 +271,14 @@ namespace StaticDB_Maker
 							throw new ParseError("invalid type " + type_tokens[0]);
 						}
 					} // switch
-					if (columnType != ColumnType.ID)
+					if (fieldType != FieldType.ID)
 						col_info.m_name = col_name;
-					col_info.m_columnNumber = col;
-					table.m_schema.RegisterColumn(col_info);
+					col_info.m_fieldNumber = col;
+					table.m_schema.RegisterField(col_info);
 				} // try
 				catch (ParseError e) {
 					fail = true;
-					Common.OnError(table.m_name, Config.ColumnTypeRow, col, e.Message);
+					Common.OnError(table.m_name, Config.FieldTypeRow, col, e.Message);
 				}
 			} // for
 			if (fail)
@@ -315,26 +315,26 @@ namespace StaticDB_Maker
 			{
 				lock (table.m_lock) {
 					EnumInfo enum_ID = null;
-					Column_ID column_ID_INT = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_INT);
-					Column_ID column_ID_STR = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_STR);
-					if (column_ID_STR != null) {
-						enum_ID = new EnumInfo(Common.EnumName(table.m_name, "ID"), column_ID_STR.m_isTypeName);
+					Field_ID field_ID_INT = (Field_ID)table.m_schema.FindField(Config.ColName_ID_INT);
+					Field_ID field_ID_STR = (Field_ID)table.m_schema.FindField(Config.ColName_ID_STR);
+					if (field_ID_STR != null) {
+						enum_ID = new EnumInfo(Common.EnumName(table.m_name, "ID"), field_ID_STR.m_isTypeName);
 						table.m_enums.Add(enum_ID.EnumName, enum_ID);
-						if (column_ID_STR.m_isTypeName)
-							column_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
+						if (field_ID_STR.m_isTypeName)
+							field_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
 					}
 
 					for (int row = Config.DataStartRow; row<=m_table.m_records.Count; ++row) {
 						// ID.INT
 						Record record = m_table.m_records[row - 1];
 						uint ID_INT;
-						if (column_ID_INT.m_columnNumber == 0) {
+						if (field_ID_INT.m_fieldNumber == 0) {
 							ID_INT = table.m_schema.m_autoIncrID++;
 						}
 						else {
-							int col = column_ID_INT.m_columnNumber;
+							int col = field_ID_INT.m_fieldNumber;
 							Cell cell = record[col];
-							if (cell.Parse(column_ID_INT.Parse, table.m_lock) == false)
+							if (cell.Parse(field_ID_INT.Parse, table.m_lock) == false)
 								throw new ParseError(table.m_name, row, col, cell.ParsedData.errmsg);
 							ID_INT = (uint)cell.ParsedData.value;
 
@@ -349,9 +349,9 @@ namespace StaticDB_Maker
 
 						// ID.STR
 						while (enum_ID != null) {
-							int col = column_ID_STR.m_columnNumber;
+							int col = field_ID_STR.m_fieldNumber;
 							Cell cell = record[col];
-							if (cell.Parse(column_ID_STR.Parse, table.m_lock) == false)
+							if (cell.Parse(field_ID_STR.Parse, table.m_lock) == false)
 								throw new ParseError(table.m_name, row, col, cell.ParsedData.errmsg);
 							string str = (string)cell.ParsedData.value;
 
@@ -375,20 +375,20 @@ namespace StaticDB_Maker
 			// Step3 - 참조하는 테이블과 컬럼이 실존하는지 검증
 			m_verify.Add(new VerifyObject(Table.State.Step3_Verified_Referance, (Table table) =>
 			{
-				foreach (var column in table.m_schema.m_columns) {
-					int col = column.m_columnNumber;
-					Column_REF refinfo = Common.GetRefInfo(column);
+				foreach (var field in table.m_schema.m_fields) {
+					int col = field.m_fieldNumber;
+					Field_REF refinfo = Common.GetRefInfo(field);
 					if (refinfo == null)
 						continue;
 
 					ReferenceFinder reference = new ReferenceFinder();
 					reference.m_startTable = table;
 					reference.m_targetTableName = refinfo.m_refTable;
-					reference.m_targetColumnName = refinfo.m_refColumn;
+					reference.m_targetFieldName = refinfo.m_refField;
 					string err = reference.Find();
 					if (err.Length > 0)
-						throw new ParseError(table.m_name, Config.ColumnTypeRow, col, err);
-					column.TypeInfo = reference.m_lastFindResult.column.TypeInfo;
+						throw new ParseError(table.m_name, Config.FieldTypeRow, col, err);
+					field.TypeInfo = reference.m_lastFindResult.field.TypeInfo;
 				}
 				return true;
 			}));
@@ -397,17 +397,17 @@ namespace StaticDB_Maker
 			m_verify.Add(new VerifyObject(Table.State.Step4_Verified_NomalData, (Table table) =>
 			{
 				bool success = true;
-				foreach (var column in table.m_schema.m_columns) {
-					int col = column.m_columnNumber;
-					if (column.m_type == ColumnType.ID)
+				foreach (var field in table.m_schema.m_fields) {
+					int col = field.m_fieldNumber;
+					if (field.m_type == FieldType.ID)
 						continue; // Step2 에서 이미 했음
-					if (Common.GetRefInfo(column) != null)
+					if (Common.GetRefInfo(field) != null)
 						continue;
 
 					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 						Record record = m_table.m_records[i];
 						Cell cell = record[col];
-						if (cell.Parse(column.Parse, table.m_lock) == false) {
+						if (cell.Parse(field.Parse, table.m_lock) == false) {
 							success = false;
 							Common.OnError(table.m_name, record.Row, col, cell.ParsedData.errmsg);
 						}
@@ -420,17 +420,17 @@ namespace StaticDB_Maker
 			m_verify.Add(new VerifyObject(Table.State.Step5_Verified_GroupReferance, (Table table) =>
 			{
 				bool success = true;
-				foreach (var column in table.m_schema.m_columns) {
-					int col = column.m_columnNumber;
-					if (column.m_type != ColumnType.GROUP)
+				foreach (var field in table.m_schema.m_fields) {
+					int col = field.m_fieldNumber;
+					if (field.m_type != FieldType.GROUP)
 						continue;
-					if (Common.GetRefInfo(column) == null)
+					if (Common.GetRefInfo(field) == null)
 						continue; // Step4 에서 이미 했음
 
 					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 						Record record = m_table.m_records[i];
 						Cell cell = record[col];
-						if (cell.Parse(column.Parse, table.m_lock) == false) {
+						if (cell.Parse(field.Parse, table.m_lock) == false) {
 							success = false;
 							Common.OnError(table.m_name, record.Row, col, cell.ParsedData.errmsg);
 						}
@@ -443,17 +443,17 @@ namespace StaticDB_Maker
 			m_verify.Add(new VerifyObject(Table.State.Step6_Verified_ReferanceData, (Table table) =>
 			{
 				bool success = true;
-				foreach (var column in table.m_schema.m_columns) {
-					int col = column.m_columnNumber;
-					if (column.m_type == ColumnType.ID)
+				foreach (var field in table.m_schema.m_fields) {
+					int col = field.m_fieldNumber;
+					if (field.m_type == FieldType.ID)
 						continue; // Step2 에서 이미 했음
-					if (Common.GetRefInfo(column) == null)
+					if (Common.GetRefInfo(field) == null)
 						continue; // Step4 에서 이미 했음
 
 					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 						Record record = m_table.m_records[i];
 						Cell cell = record[col];
-						if (cell.Parse(column.Parse, table.m_lock) == false) {
+						if (cell.Parse(field.Parse, table.m_lock) == false) {
 							success = false;
 							Common.OnError(table.m_name, record.Row, col, cell.ParsedData.errmsg);
 						}
@@ -467,11 +467,11 @@ namespace StaticDB_Maker
 			{
 				bool success = true;
 				// WEIGHT 총합이 0인지 체크
-				foreach (var column in table.m_schema.m_columns) {
-					if (column.m_type != ColumnType.WEIGHT)
+				foreach (var field in table.m_schema.m_fields) {
+					if (field.m_type != FieldType.WEIGHT)
 						continue;
-					int col = column.m_columnNumber;
-					Column_WEIGHT cast = (Column_WEIGHT)column;
+					int col = field.m_fieldNumber;
+					Field_WEIGHT cast = (Field_WEIGHT)field;
 					Dictionary<uint, uint> sum = new Dictionary<uint, uint>();
 					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 						Record record = m_table.m_records[i];
@@ -481,21 +481,21 @@ namespace StaticDB_Maker
 						if (cast.m_group == null)
 							group = 0;
 						else
-							group = (uint)record[cast.m_group.m_columnNumber].ParsedData.value;
+							group = (uint)record[cast.m_group.m_fieldNumber].ParsedData.value;
 
 						if (sum.ContainsKey(group) == false)
 							sum.Add(group, 0);
 						sum[group] += (uint)cell.ParsedData.value;
 					}
 					foreach (var it in sum) {
-						string columnName;
+						string fieldName;
 						if (cast.m_group == null)
-							columnName = Config.ColName_ID_INT;
+							fieldName = Config.ColName_ID_INT;
 						else
-							columnName = cast.m_group.m_name;
+							fieldName = cast.m_group.m_name;
 						if (it.Value == 0) {
 							success = false;
-							Common.OnError(table.m_name, 0, col, String.Format("zero-WEIGHT error, {0}:{1}", columnName, it.Key));
+							Common.OnError(table.m_name, 0, col, String.Format("zero-WEIGHT error, {0}:{1}", fieldName, it.Key));
 						}
 					}
 				}
