@@ -226,8 +226,8 @@ namespace StaticDB_Maker
 				if (column.m_group == null)
 					file.Print("    inline const _{0}_Order& _{0}() const {{ return m_{0}; }}", column.m_name);
 				else {
-					string group_type = column.TypeInfo.types[TypeMapper.Type.CPP];
-					if (column.TypeInfo.IsEnum())
+					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CPP];
+					if (column.m_group.TypeInfo.IsEnum())
 						file.Print("    inline const _{0}_Order& _{0}(uint32_t group_ID) const {{ return _{0}(static_cast<{1}>(group_ID)); }}", column.m_name, group_type);
 					file.Print("    inline const _{0}_Order& _{0}({1} group_ID) const {{ return m_{0}[group_ID]; }}", column.m_name, group_type);
 				}

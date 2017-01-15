@@ -249,34 +249,74 @@ namespace StaticDB_Maker
 		{
 			OnFind = (ReferenceFinder.OnFindArgs args) =>
 			{
-				Record record = null;
-				switch (m_ID.type) {
-					case Data.Type.UINT: {
-						record = args.table.m_records_byInt.Find((uint)m_ID.value);
-						break;
+				if (args.column.m_type == ColumnType.GROUP) {
+					args.verifier.Verify(Table.State.Step5_Verified_GroupReferance);
+					var groups = ((Column_GROUP)args.column).m_groups;
+					uint groupID = 0;
+					bool isValidGroupID = false;
+					switch (m_ID.type) {
+						case Data.Type.UINT: {
+							groupID = (uint)m_ID.value;
+							isValidGroupID = groups.Contains(groupID);
+							break;
+						}
+						case Data.Type.STR: {
+							string enum_name;
+							var next_ref = Common.GetRefInfo(args.column);
+							if (next_ref != null)
+								enum_name = Common.EnumName(next_ref.m_refTable, "ID");
+							else
+								enum_name = Common.EnumName(args.table.m_name, args.column.m_name);
+							EnumInfo ei;
+							if (EnumInfo.Enums.TryGetValue(enum_name, out ei)) {
+								groupID = ei.NameToNum[m_ID.ToString()];
+								isValidGroupID = groups.Contains(groupID);
+							}
+							break;
+						}
 					}
-					case Data.Type.STR: {
-						record = args.table.m_records_byStr.Find((string)m_ID.value);
-						break;
+
+					if (isValidGroupID == false) {
+						throw new ParseError(String.Format("group(ID:{0}) does not exists in {1} table",
+							m_ID.ToString(), args.table.m_name));
 					}
-				}
 
-				if (record == null) {
-					throw new ParseError(String.Format("record(ID:{0}) does not exists in {1} table",
-						m_ID.value.ToString(), args.table.m_name));
-				}
-
-				if (args.isLast) {
-					args.verifier.Verify(Table.State.Step4_Verified_NomalData);
-					if (args.column.m_type == ColumnType.ID)
-						m_result = args.column.Parse(record.ID_INT.ToString());
-					else
-						m_result = args.column.Parse(record[args.column.m_columnNumber].Source);
+					if (args.isLast) {
+						args.verifier.Verify(Table.State.Step4_Verified_NomalData);
+						m_result.type = Data.Type.UINT;
+						m_result.value = groupID;
+					}
 				}
 				else {
-					m_ID = DefaultParser.ID(record[args.column.m_columnNumber].Source);
-					if (m_ID.Err())
-						throw new ParseError(m_ID.errmsg);
+					Record record = null;
+					switch (m_ID.type) {
+						case Data.Type.UINT: {
+							record = args.table.m_records_byInt.Find((uint)m_ID.value);
+							break;
+						}
+						case Data.Type.STR: {
+							record = args.table.m_records_byStr.Find((string)m_ID.value);
+							break;
+						}
+					}
+
+					if (record == null) {
+						throw new ParseError(String.Format("record(ID:{0}) does not exists in {1} table",
+							m_ID.ToString(), args.table.m_name));
+					}
+
+					if (args.isLast) {
+						args.verifier.Verify(Table.State.Step4_Verified_NomalData);
+						if (args.column.m_type == ColumnType.ID)
+							m_result = args.column.Parse(record.ID_INT.ToString());
+						else
+							m_result = args.column.Parse(record[args.column.m_columnNumber].Source);
+					}
+					else {
+						m_ID = DefaultParser.ID(record[args.column.m_columnNumber].Source);
+						if (m_ID.Err())
+							throw new ParseError(m_ID.errmsg);
+					}
 				}
 			};
 		}
@@ -526,6 +566,7 @@ namespace StaticDB_Maker
 	{
 		public TableSchema.Column m_detailType = null;
 		public bool m_isTypeName = false;
+		public HashSet<uint> m_groups = new HashSet<uint>();
 		public Column_GROUP(TableSchema.Column detailType, bool isTypeName)
 		{
 			m_type = ColumnType.GROUP;
@@ -538,7 +579,15 @@ namespace StaticDB_Maker
 			m_detailType.m_name = m_name;
 			switch (m_detailType.m_type) {
 				case ColumnType.INT: {
-					Parse = DefaultParser.ID_INT;
+					Parse = (string src) =>
+					{
+						var data = DefaultParser.ID_INT(src);
+						if (data.Err())
+							return data;
+						uint groupID = (uint)data.value;
+						m_groups.Add(groupID);
+						return data;
+					};
 					TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
@@ -556,8 +605,11 @@ namespace StaticDB_Maker
 						}
 						string en = data.value.ToString();
 						ei.Add(en);
+						uint groupID = ei.NameToNum[en];
+
 						data.type = Data.Type.UINT;
-						data.value = ei.NameToNum[en];
+						data.value = groupID;
+						m_groups.Add(groupID);
 						return data;
 					};
 					if (m_isTypeName)
@@ -570,7 +622,12 @@ namespace StaticDB_Maker
 					Parse = (string src) =>
 					{
 						Column_REF refType = (Column_REF)m_detailType;
-						return refType.Parse(src);
+						var data = refType.Parse(src);
+						if (data.Err())
+							return data;
+						uint groupID = (uint)data.value;
+						m_groups.Add(groupID);
+						return data;
 					};
 					break;
 				}
@@ -749,8 +806,9 @@ namespace StaticDB_Maker
 			Step2_Complete_ID_Indexing,
 			Step3_Verified_Referance,
 			Step4_Verified_NomalData,
-			Step5_Verified_ReferanceData,
-			Step6_Complete_AdditionalVerify,
+			Step5_Verified_GroupReferance,
+			Step6_Verified_ReferanceData,
+			Step7_Complete_AdditionalVerify,
 			VerifyComplete,
 		}
 

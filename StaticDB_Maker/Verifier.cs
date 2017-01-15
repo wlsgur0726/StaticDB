@@ -416,8 +416,31 @@ namespace StaticDB_Maker
 				return success;
 			}));
 
-			// Step5 - 참조데이터 끌어오며 검증
-			m_verify.Add(new VerifyObject(Table.State.Step5_Verified_ReferanceData, (Table table) =>
+			// Step5 - 그룹 컬럼 참조 검증
+			m_verify.Add(new VerifyObject(Table.State.Step5_Verified_GroupReferance, (Table table) =>
+			{
+				bool success = true;
+				foreach (var column in table.m_schema.m_columns) {
+					int col = column.m_columnNumber;
+					if (column.m_type != ColumnType.GROUP)
+						continue;
+					if (Common.GetRefInfo(column) == null)
+						continue; // Step4 에서 이미 했음
+
+					for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
+						Record record = m_table.m_records[i];
+						Cell cell = record[col];
+						if (cell.Parse(column.Parse, table.m_lock) == false) {
+							success = false;
+							Common.OnError(table.m_name, record.Row, col, cell.ParsedData.errmsg);
+						}
+					}
+				}
+				return success;
+			}));
+
+			// Step6 - 참조데이터 끌어오며 검증
+			m_verify.Add(new VerifyObject(Table.State.Step6_Verified_ReferanceData, (Table table) =>
 			{
 				bool success = true;
 				foreach (var column in table.m_schema.m_columns) {
@@ -439,8 +462,8 @@ namespace StaticDB_Maker
 				return success;
 			}));
 
-			// Step6 - 기타 부가적인 검증
-			m_verify.Add(new VerifyObject(Table.State.Step6_Complete_AdditionalVerify, (Table table) =>
+			// Step7 - 기타 부가적인 검증
+			m_verify.Add(new VerifyObject(Table.State.Step7_Complete_AdditionalVerify, (Table table) =>
 			{
 				bool success = true;
 				// WEIGHT 총합이 0인지 체크

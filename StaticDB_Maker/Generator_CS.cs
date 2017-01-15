@@ -179,8 +179,8 @@ namespace StaticDB_Maker
 				if (column.m_group == null)
 					file.Print("    public _{0}_Order _{0} {{ get {{ return m_{0}; }} }}", column.m_name);
 				else {
-					string group_type = column.TypeInfo.types[TypeMapper.Type.CS];
-					if (column.TypeInfo.IsEnum())
+					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
+					if (column.m_group.TypeInfo.IsEnum())
 						file.Print("    public _{0}_Order _{0}(uint group_ID) {{ return _{0}(({1})group_ID); }}", column.m_name, group_type);
 					file.Print("    public _{0}_Order _{0}({1} group_ID) {{ return m_{0}[group_ID]; }}", column.m_name, group_type);
 				}
