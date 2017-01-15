@@ -60,9 +60,11 @@ namespace StaticDB_Maker
 		{
 			List<Column_REF> ref_list = new List<Column_REF>();
 			List<Column_GROUP> group_list = new List<Column_GROUP>();
-			List<Column_WEIGHT> ratio_list = new List<Column_WEIGHT>();
+			List<Column_WEIGHT> weight_list = new List<Column_WEIGHT>();
 			List<Column_ORDER> order_list = new List<Column_ORDER>();
-			foreach (var column in table.m_schema.m_columns) {
+
+			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			{
 				switch (column.m_type) {
 					case ColumnType.REF: {
 						Column_REF cast = (Column_REF)column;
@@ -78,7 +80,7 @@ namespace StaticDB_Maker
 						break;
 					}
 					case ColumnType.WEIGHT: {
-						ratio_list.Add((Column_WEIGHT)column);
+						weight_list.Add((Column_WEIGHT)column);
 						break;
 					}
 					case ColumnType.ORDER: {
@@ -86,8 +88,7 @@ namespace StaticDB_Maker
 						break;
 					}
 				}
-			}
-
+			});
 			Printer file = new Printer(Path.Combine(Config.Out_CPP_Path, table.m_name + "_Table.h"));
 			file.Print("// {0}", Config.AutoGenComment);
 			file.Print("#pragma once");
@@ -119,15 +120,16 @@ namespace StaticDB_Maker
 			file.Print("    inline int64_t GetInt({0}_Column column) const", table.m_name);
 			file.Print("    {");
 			file.Print("      switch(column) {");
-			foreach (var column in table.m_schema.m_columns) {
+			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			{
 				switch (column.m_type) {
 					case ColumnType.STR:
 					case ColumnType.RATE:
-						continue;
+						return;
 				}
 				file.Print("        case {0}_Column::_{1}:", table.m_name, column.m_name);
 				file.Print("          return static_cast<int64_t>(ref()._{0}());", column.m_name);
-			}
+			});
 			file.Print("      }");
 			file.Print("      assert(false); // invalid column");
 			file.Print("      return 0;");
@@ -137,7 +139,8 @@ namespace StaticDB_Maker
 			file.Print("    inline std::string GetStr({0}_Column column) const", table.m_name);
 			file.Print("    {");
 			file.Print("      switch(column) {");
-			foreach (var column in table.m_schema.m_columns) {
+			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			{
 				string ret;
 				if (column.TypeInfo.fbs == "string")
 					ret = String.Format("ref()._{0}()->str()", column.m_name);
@@ -147,7 +150,7 @@ namespace StaticDB_Maker
 					ret = String.Format("std::to_string(ref()._{0}())", column.m_name);
 				file.Print("        case {0}_Column::_{1}:", table.m_name, column.m_name);
 				file.Print("          return {0};", ret);
-			}
+			});
 			file.Print("      }");
 			file.Print("      assert(false); // invalid column");
 			file.Print("      return std::string();");
@@ -157,14 +160,15 @@ namespace StaticDB_Maker
 			file.Print("    inline double GetReal({0}_Column column) const", table.m_name);
 			file.Print("    {");
 			file.Print("      switch(column) {");
-			foreach (var column in table.m_schema.m_columns) {
+			TableBuilder.Loop_FBS_Columns(table, (TableSchema.Column column) =>
+			{
 				switch (column.m_type) {
 					case ColumnType.STR:
-						continue;
+						return;
 				}
 				file.Print("        case {0}_Column::_{1}:", table.m_name, column.m_name);
 				file.Print("          return static_cast<double>(ref()._{0}());", column.m_name);
-			}
+			});
 			file.Print("      }");
 			file.Print("      assert(false); // invalid column");
 			file.Print("      return 0;");
@@ -186,16 +190,19 @@ namespace StaticDB_Maker
 			file.Print("  public:");
 			file.Print("    typedef StaticDB::Table<{0}_FBS_Data, {0}_Record> BaseType;", table.m_name);
 			file.Print("");
-			file.Print("    virtual const wchar_t* GetTableFileName() const override {{ return L\"{0}.bin\"; }}", table.m_name);
-			file.Print("");
-			EnumInfo ID = null;
-			if (table.m_enums.TryGetValue(Common.EnumName(table.m_name, "ID"), out ID)) {
-				file.Print("    inline const Record& GetRecord({0} ID) const {{ return BaseType::GetRecord(static_cast<uint32_t>(ID)); }}", ID.EnumName);
-				file.Print("    inline const Record& operator[]({0} ID) const {{ return BaseType::GetRecord(static_cast<uint32_t>(ID)); }}", ID.EnumName);
-				file.Print("");
+			EnumInfo ID_Enum = null;
+			if (table.m_enums.TryGetValue(Common.EnumName(table.m_name, "ID"), out ID_Enum)) {
+				if (ID_Enum.Build == false) {
+					ID_Enum = null;
+				}
+				else {
+					file.Print("    inline const Record& GetRecord({0} ID) const {{ return BaseType::GetRecord(static_cast<uint32_t>(ID)); }}", ID_Enum.EnumName);
+					file.Print("    inline const Record& operator[]({0} ID) const {{ return BaseType::GetRecord(static_cast<uint32_t>(ID)); }}", ID_Enum.EnumName);
+					file.Print("");
+				}
 			}
 			foreach (var column in group_list) {
-				string ID_type = ID == null ? "uint32_t" : ID.EnumName;
+				string ID_type = ID_Enum == null ? "uint32_t" : ID_Enum.EnumName;
 				string group_type = column.TypeInfo.types[TypeMapper.Type.CPP];
 				file.Print("    typedef StaticDB::HashMap<{0}, {1}_Record> _{2}_Group;", ID_type, table.m_name, column.m_name);
 				if (column.TypeInfo.IsEnum())
@@ -203,9 +210,9 @@ namespace StaticDB_Maker
 				file.Print("    inline const _{0}_Group& _{0}({1} group_ID) const {{ return m_{0}[group_ID]; }}", column.m_name, group_type);
 				file.Print("");
 			}
-			foreach (var column in ratio_list) {
+			foreach (var column in weight_list) {
 				if (column.m_group == null)
-					file.Print("    const {0}_Record& Pick_{1}() const {{ return m_{1}.Pick(); }}", table.m_name, column.m_name);
+					file.Print("    inline const {0}_Record& Pick_{1}() const {{ return m_{1}.Pick(); }}", table.m_name, column.m_name);
 				else {
 					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CPP];
 					if (column.m_group.TypeInfo.IsEnum())
@@ -215,9 +222,9 @@ namespace StaticDB_Maker
 				file.Print("");
 			}
 			foreach (var column in order_list) {
-				file.Print("    typedef std::map<uint32_t, {0}_Record> _{1}_Order;", table.m_name, column.m_name);
+				file.Print("    typedef std::map<int64_t, {0}_Record> _{1}_Order;", table.m_name, column.m_name);
 				if (column.m_group == null)
-					file.Print("    const _{0}_Order& _{0}() const {{ return m_{0}; }}", column.m_name);
+					file.Print("    inline const _{0}_Order& _{0}() const {{ return m_{0}; }}", column.m_name);
 				else {
 					string group_type = column.TypeInfo.types[TypeMapper.Type.CPP];
 					if (column.TypeInfo.IsEnum())
@@ -231,11 +238,11 @@ namespace StaticDB_Maker
 			file.Print("    typedef typename {0}_Record::Ref Ref;", table.m_name);
 			file.Print("    std::unordered_map<uint32_t, std::unique_ptr<Ref>> m__refTable;");
 			foreach (var column in group_list) {
-				string ID_type = ID == null ? "uint32_t" : ID.EnumName;
+				string ID_type = ID_Enum == null ? "uint32_t" : ID_Enum.EnumName;
 				string group_type = column.TypeInfo.types[TypeMapper.Type.CPP];
 				file.Print("    StaticDB::HashMap<{0}, _{1}_Group> m_{1};", group_type, column.m_name);
 			}
-			foreach (var column in ratio_list) {
+			foreach (var column in weight_list) {
 				if (column.m_group == null)
 					file.Print("    StaticDB::Weight<{0}_Record> m_{1};", table.m_name, column.m_name);
 				else {
@@ -251,6 +258,8 @@ namespace StaticDB_Maker
 					file.Print("    StaticDB::HashMap<{0}, _{1}_Order> m_{1};", group_type, column.m_name);
 				}
 			}
+			file.Print("");
+			file.Print("    virtual const wchar_t* GetTableFileName() const override {{ return L\"{0}.bin\"; }}", table.m_name);
 			file.Print("");
 			file.Print("    virtual void OnLoaded(const StaticDB::Tables& tables) override;");
 			file.Print("  };");
@@ -280,7 +289,7 @@ namespace StaticDB_Maker
 				file.Print("      m_{0}[record->_{0}()][record->_ID_INT()] = record;", column.m_name);
 				file.Print("");
 			}
-			foreach (var column in ratio_list) {
+			foreach (var column in weight_list) {
 				if (column.m_group == null)
 					file.Print("      m_{0}.Add(record->_{0}(), &record);", column.m_name);
 				else

@@ -360,7 +360,7 @@ namespace StaticDB_Maker
 				}
 
 				if (ID_INT.Count == 0)
-					RegisterColumn(new Column_ID(ColumnType.INT));
+					RegisterColumn(new Column_ID(ColumnType.INT, false));
 				else if (ID_INT.Count > 1) {
 					success = false;
 					for (int i=1; i<ID_INT.Count; ++i) {
@@ -452,10 +452,12 @@ namespace StaticDB_Maker
 	class Column_ID : TableSchema.Column
 	{
 		public ColumnType m_detailType = ColumnType._UNKNOWN_;
-		public Column_ID(ColumnType detailType)
+		public bool m_isTypeName = false;
+		public Column_ID(ColumnType detailType, bool isTypeName)
 		{
 			m_type = ColumnType.ID;
 			m_detailType = detailType;
+			m_isTypeName = isTypeName;
 			switch (m_detailType) {
 				case ColumnType.INT: {
 					m_name = Config.ColName_ID_INT;
@@ -481,7 +483,10 @@ namespace StaticDB_Maker
 				}
 				case ColumnType.STR: {
 					Parse = DefaultParser.ID_STR;
-					TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, "ID"));
+					if (m_isTypeName)
+						TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, "ID"));
+					else
+						TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
 			}
@@ -520,10 +525,12 @@ namespace StaticDB_Maker
 	class Column_GROUP : TableSchema.Column
 	{
 		public TableSchema.Column m_detailType = null;
-		public Column_GROUP(TableSchema.Column detailType)
+		public bool m_isTypeName = false;
+		public Column_GROUP(TableSchema.Column detailType, bool isTypeName)
 		{
 			m_type = ColumnType.GROUP;
 			m_detailType = detailType;
+			m_isTypeName = isTypeName;
 		}
 		public override string OnRegister(TableSchema schema)
 		{
@@ -544,7 +551,7 @@ namespace StaticDB_Maker
 						string enum_name = Common.EnumName(m_owner.m_name, m_name);
 						EnumInfo ei;
 						if (m_owner.m_enums.TryGetValue(enum_name, out ei) == false) {
-							ei = new EnumInfo(enum_name);
+							ei = new EnumInfo(enum_name, m_isTypeName);
 							m_owner.m_enums.Add(enum_name, ei);
 						}
 						string en = data.value.ToString();
@@ -553,7 +560,10 @@ namespace StaticDB_Maker
 						data.value = ei.NameToNum[en];
 						return data;
 					};
-					TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, m_name));
+					if (m_isTypeName)
+						TypeInfo = TypeMapper.byEnum(Common.EnumName(m_owner.m_name, m_name));
+					else
+						TypeInfo = TypeMapper.byFBS("uint");
 					break;
 				}
 				case ColumnType.REF: {
@@ -666,10 +676,12 @@ namespace StaticDB_Maker
 		public string EnumName;
 		public SortedDictionary<uint, string> NumToName = new SortedDictionary<uint, string>();
 		public Dictionary<string, uint> NameToNum = new Dictionary<string, uint>();
+		public bool Build = false;
 
-		public EnumInfo(string name)
+		public EnumInfo(string name, bool build)
 		{
 			EnumName = name;
+			Build = build;
 			lock (Enums) {
 				Enums.Add(EnumName, this);
 			}

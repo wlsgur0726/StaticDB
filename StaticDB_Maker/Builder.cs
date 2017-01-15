@@ -288,21 +288,21 @@ namespace StaticDB_Maker
 			m_verifier = verifier;
 		}
 
-		//public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column);
-		//public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
-		//{
-		//	foreach (var column in table.m_schema.m_columns) {
-		//		switch (column.m_type) {
-		//			case ColumnType.ID: {
-		//				Column_ID cast = (Column_ID)column;
-		//				if (cast.m_detailType == ColumnType.STR)
-		//					continue;
-		//				break;
-		//			}
-		//		}
-		//		f(column);
-		//	}
-		//}
+		public delegate void Loop_FBS_Columns_Delegate(TableSchema.Column column);
+		public static void Loop_FBS_Columns(Table table, Loop_FBS_Columns_Delegate f)
+		{
+			foreach (var column in table.m_schema.m_columns) {
+				switch (column.m_type) {
+					case ColumnType.ID: {
+						Column_ID cast = (Column_ID)column;
+						if (cast.m_detailType==ColumnType.STR && cast.m_isTypeName==false)
+							continue;
+						break;
+					}
+				}
+				f(column);
+			}
+		}
 
 		public void GenFBS()
 		{
@@ -315,12 +315,16 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("enum {0}_Column : uint", m_table.m_name);
 			fbs.Print("{");
-			foreach (var column in m_table.m_schema.m_columns)
+			Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+			{
 				fbs.Print("  _{0},", column.m_name);
+			});
 			fbs.Print("}");
 			fbs.Print("");
 			foreach (var it in m_table.m_enums) {
 				EnumInfo ei = it.Value;
+				if (ei.Build == false)
+					continue;
 				fbs.Print("enum {0} : uint", ei.EnumName);
 				fbs.Print("{");
 				foreach (var en in ei.NumToName)
@@ -339,8 +343,8 @@ namespace StaticDB_Maker
 			fbs.Print("");
 			fbs.Print("table {0}_FBS", m_table.m_name);
 			fbs.Print("{");
-
-			foreach (var column in m_table.m_schema.m_columns) {
+			Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+			{
 				var type = column.TypeInfo;
 				if (column.m_type==ColumnType.ID && ((Column_ID)column).m_detailType==ColumnType.INT)
 					type = TypeMapper.byFBS("uint");
@@ -351,7 +355,7 @@ namespace StaticDB_Maker
 				}
 				print += ';';
 				fbs.Print(print);
-			}
+			});
 			fbs.Print("}");
 			fbs.Print("");
 			fbs.Print("table {0}_FBS_Data", m_table.m_name);
@@ -386,9 +390,12 @@ namespace StaticDB_Maker
 			for (int i = Config.DataStartRow-1; i<m_table.m_records.Count; ++i) {
 				Record record = m_table.m_records[i];
 				string line = " {_ID_INT:" + record.ID_INT + ',';
-				foreach (var column in m_table.m_schema.m_columns) {
-					if (column.m_type == ColumnType.ID)
-						continue;
+				Loop_FBS_Columns(m_table, (TableSchema.Column column) =>
+				{
+					if (column.m_type == ColumnType.ID) {
+						if (((Column_ID)column).m_detailType == ColumnType.INT)
+							return;
+					}
 					bool isStr = column.TypeInfo.fbs == "string";
 					line += '_' + column.m_name + ':';
 					if (isStr)
@@ -397,7 +404,7 @@ namespace StaticDB_Maker
 					if (isStr)
 						line += '"';
 					line += ",";
-				}
+				});
 				line += "},";
 				json.Print(line);
 			}

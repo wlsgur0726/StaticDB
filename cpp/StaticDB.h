@@ -160,8 +160,8 @@ namespace StaticDB
 
 	template <typename TABLE, typename TABLE_ID, typename RECORD_ID>
 	inline const typename TABLE::Record& GetRecord(const Tables& tables,
-														  TABLE_ID table_ID,
-														  RECORD_ID record_ID)
+												   TABLE_ID table_ID,
+												   RECORD_ID record_ID)
 	{
 		auto& table = tables[GetTableIndex(table_ID)];
 		TABLE* cast = dynamic_cast<TABLE*>(table.get());
@@ -236,10 +236,13 @@ namespace StaticDB
 	protected:
 		bool InitTables(const std::wstring& dir, Tables&& tables)
 		{
-			bool ok = true;
+			std::vector<bool> fail;
+			fail.resize(tables.size());
+
 			std::experimental::filesystem::path base_path(dir.c_str());
-			for (auto& table : tables) {
+			for (size_t i=0; i<tables.size(); ++i) {
 				try {
+					auto& table = tables[i];
 					auto file_path = base_path / table->GetTableFileName();
 					std::ifstream ifs(file_path.c_str(), std::ios::binary | std::ios::ate);
 					if (ifs.is_open() == false)
@@ -253,21 +256,27 @@ namespace StaticDB
 					table->Init(std::move(buffer));
 				}
 				catch (const std::string& e) {
-					ok = false;
+					fail[i] = true;
 					OnError(e);
 				}
 			}
-			for (auto& table : tables) {
+
+			for (size_t i=0; i<tables.size(); ++i) {
 				try {
-					table->OnLoaded(tables);
+					if (fail[i])
+						continue;
+					tables[i]->OnLoaded(tables);
 				}
 				catch (const std::string& e) {
-					ok = false;
+					fail[i] = true;
 					OnError(e);
 				}
 			}
-			if (ok == false)
-				return false;
+
+			for (bool f : fail) {
+				if (f)
+					return false;
+			}
 			m_tables = std::move(tables);
 			return OnInitComplete();
 		}

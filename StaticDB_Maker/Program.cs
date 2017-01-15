@@ -34,6 +34,7 @@ namespace StaticDB_Maker
 				Config.Out_FBS_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\gen_fbs\Test01";
 				Config.Out_BIN_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\gen_bin\Test01";
 				Config.Out_CPP_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\cpp\Test01";
+				Config.Out_CS_Path = @"D:\windows\kjh\workspace\git\StaticDB\example\cs\Test01";
 				Config.flatc_Path = Path.Combine(@"D:\windows\kjh\workspace\flatbuffertest", "flatc.exe");
 				foreach (var table in Config.Target_Table) {
 					var builder = Builder.s_instance.FindBuilder(table);
@@ -52,12 +53,13 @@ namespace StaticDB_Maker
 			}
 			finally {
 				try {
-					//(new DirectoryInfo(Config.Temp_Path)).Delete(true);
+					(new DirectoryInfo(Config.Temp_Path)).Delete(true);
 				}
 				catch (Exception) {
 				}
 			}
 		}
+
 
 		static void Main(string[] args)
 		{

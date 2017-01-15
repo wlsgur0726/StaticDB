@@ -205,7 +205,8 @@ namespace StaticDB_Maker
 							if (type_tokens.Length <= 1)
 								throw new ParseError("missing detail type");
 							ColumnType detailType = Common.FindColumnType(type_tokens[1]);
-							col_info = new Column_ID(detailType);
+							bool isTypeName = detailType==ColumnType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
+							col_info = new Column_ID(detailType, isTypeName);
 							break;
 						}
 						case ColumnType.REF: {
@@ -224,13 +225,14 @@ namespace StaticDB_Maker
 							switch (detailType) {
 								case ColumnType.INT:
 								case ColumnType.STR: {
-									col_info = new Column_GROUP(new Column_Nomal(detailType));
+									bool isTypeName = detailType==ColumnType.STR && type_tokens.Length>=3 && type_tokens[2]=="TYPE";
+									col_info = new Column_GROUP(new Column_Nomal(detailType), isTypeName);
 									break;
 								}
 								case ColumnType.REF: {
 									if (type_tokens.Length <= 2)
 										throw new ParseError("missing table name");
-									col_info = new Column_GROUP(new Column_REF(type_tokens[2]));
+									col_info = new Column_GROUP(new Column_REF(type_tokens[2]), false);
 									break;
 								}
 								default: {
@@ -316,9 +318,10 @@ namespace StaticDB_Maker
 					Column_ID column_ID_INT = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_INT);
 					Column_ID column_ID_STR = (Column_ID)table.m_schema.FindColumn(Config.ColName_ID_STR);
 					if (column_ID_STR != null) {
-						enum_ID = new EnumInfo(Common.EnumName(table.m_name, "ID"));
+						enum_ID = new EnumInfo(Common.EnumName(table.m_name, "ID"), column_ID_STR.m_isTypeName);
 						table.m_enums.Add(enum_ID.EnumName, enum_ID);
-						column_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
+						if (column_ID_STR.m_isTypeName)
+							column_ID_INT.TypeInfo = TypeMapper.byEnum(Common.EnumName(table.m_name, "ID"));
 					}
 
 					for (int row = Config.DataStartRow; row<=m_table.m_records.Count; ++row) {
@@ -348,8 +351,6 @@ namespace StaticDB_Maker
 						while (enum_ID != null) {
 							int col = column_ID_STR.m_columnNumber;
 							Cell cell = record[col];
-							if (cell.Source.Length == 0)
-								break;
 							if (cell.Parse(column_ID_STR.Parse, table.m_lock) == false)
 								throw new ParseError(table.m_name, row, col, cell.ParsedData.errmsg);
 							string str = (string)cell.ParsedData.value;
@@ -362,6 +363,8 @@ namespace StaticDB_Maker
 							record.ID_STR = str;
 							table.m_records_byStr.Add(str, record);
 							enum_ID.Add(str, ID_INT);
+							cell.ParsedData.type = Data.Type.UINT;
+							cell.ParsedData.value = ID_INT;
 							break;
 						}
 					}
