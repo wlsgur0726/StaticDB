@@ -204,7 +204,7 @@ namespace StaticDB_Maker
 				if (column.m_group == null)
 					file.Print("    private _{0}_Order m_{0} = new _{0}_Order();", column.m_name);
 				else {
-					string group_type = column.TypeInfo.types[TypeMapper.Type.CS];
+					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CS];
 					file.Print("    private Dictionary<{0}, _{1}_Order> m_{1} = new Dictionary<{0}, _{1}_Order>();", group_type, column.m_name);
 				}
 			}

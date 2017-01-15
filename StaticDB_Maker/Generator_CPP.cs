@@ -254,7 +254,7 @@ namespace StaticDB_Maker
 				if (column.m_group == null)
 					file.Print("    _{0}_Order m_{0};", column.m_name);
 				else {
-					string group_type = column.TypeInfo.types[TypeMapper.Type.CPP];
+					string group_type = column.m_group.TypeInfo.types[TypeMapper.Type.CPP];
 					file.Print("    StaticDB::HashMap<{0}, _{1}_Order> m_{1};", group_type, column.m_name);
 				}
 			}
