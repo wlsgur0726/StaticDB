@@ -177,7 +177,8 @@ namespace StaticDB
 		virtual ~TableInterface() {}
 		virtual const wchar_t* GetTableFileName() const = 0;
 		virtual void Init(std::vector<uint8_t>&& buffer) = 0;
-		virtual void OnLoaded(const Tables& tables) = 0;
+		virtual void OnLoaded1(const Tables& tables) = 0;
+		virtual void OnLoaded2(const Tables& tables) = 0;
 	};
 
 
@@ -235,6 +236,22 @@ namespace StaticDB
 		virtual ~DB() {}
 
 	protected:
+		template <typename Func>
+		void Callback(Func func, std::vector<bool>& fail, const Tables& tables)
+		{
+			for (size_t i=0; i<tables.size(); ++i) {
+				try {
+					if (fail[i])
+						continue;
+					func(tables[i], tables);
+				}
+				catch (const std::string& e) {
+					fail[i] = true;
+					OnError(e);
+				}
+			}
+		}
+
 		bool InitTables(const std::wstring& dir, Tables&& tables)
 		{
 			std::vector<bool> fail;
@@ -262,17 +279,8 @@ namespace StaticDB
 				}
 			}
 
-			for (size_t i=0; i<tables.size(); ++i) {
-				try {
-					if (fail[i])
-						continue;
-					tables[i]->OnLoaded(tables);
-				}
-				catch (const std::string& e) {
-					fail[i] = true;
-					OnError(e);
-				}
-			}
+			Callback(std::mem_fn(&TableInterface::OnLoaded1), fail, tables);
+			Callback(std::mem_fn(&TableInterface::OnLoaded2), fail, tables);
 
 			for (bool f : fail) {
 				if (f)

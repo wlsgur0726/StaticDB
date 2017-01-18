@@ -8,11 +8,82 @@ using System.Threading.Tasks;
 
 namespace StaticDB_Maker
 {
-	public abstract class GenProgramCode
+	partial class Generator
 	{
-		public abstract void Gen();
-	}
+		static string TypeName(string table, string name, string default_)
+		{
+			EnumInfo ei = null;
+			if (EnumInfo.Enums.TryGetValue(Common.EnumName(table, name), out ei)) {
+				if (ei.Build == false)
+					ei = null;
+			}
+			return ei == null ? default_ : ei.EnumName;
+		}
 
+		class CommonInfo
+		{
+			public List<Field_REF> ref_list = new List<Field_REF>();
+			public List<Field_REF> refGroup_list = new List<Field_REF>();
+			public List<Field_REF> refWeightGroup_list = new List<Field_REF>();
+			public List<Field_REF> refOrderGroup_list = new List<Field_REF>();
+			public List<Field_GROUP> group_list = new List<Field_GROUP>();
+			public List<Field_WEIGHT> weight_list = new List<Field_WEIGHT>();
+			public List<Field_ORDER> order_list = new List<Field_ORDER>();
+			public EnumInfo ID_Enum = null;
+
+			public CommonInfo(Table table)
+			{
+				if (table.m_enums.TryGetValue(Common.EnumName(table.m_name, "ID"), out ID_Enum)) {
+					if (ID_Enum.Build == false)
+						ID_Enum = null;
+				}
+
+				TableBuilder.Loop_FBS_Fields(table, (TableSchema.Field field) =>
+				{
+					switch (field.m_type) {
+						case FieldType.REF: {
+							Field_REF cast = (Field_REF)field;
+							if (cast.m_refField=="" || cast.m_refField=="ID_INT" || cast.m_refField=="ID_STR")
+								ref_list.Add(cast);
+							else if (cast.m_groupRef != null) {
+								switch (cast.m_finalRef.m_type) {
+									case FieldType.ID:
+									case FieldType.GROUP: {
+										refGroup_list.Add(cast);
+										break;
+									}
+									case FieldType.WEIGHT: {
+										refWeightGroup_list.Add(cast);
+										break;
+									}
+									case FieldType.ORDER: {
+										refOrderGroup_list.Add(cast);
+										break;
+									}
+								}
+							}
+							break;
+						}
+						case FieldType.GROUP: {
+							Field_GROUP cast = (Field_GROUP)field;
+							group_list.Add(cast);
+							if (cast.m_detailType.m_type == FieldType.REF)
+								ref_list.Add((Field_REF)cast.m_detailType);
+							break;
+						}
+						case FieldType.WEIGHT: {
+							weight_list.Add((Field_WEIGHT)field);
+							break;
+						}
+						case FieldType.ORDER: {
+							order_list.Add((Field_ORDER)field);
+							break;
+						}
+					}
+				});
+			}
+		}
+	}
 
 
 	public class TypeMapper

@@ -137,6 +137,18 @@ namespace StaticDB_Maker
 			return null;
 		}
 
+		public static Field_GROUP GetGroupInfo(TableSchema.Field field)
+		{
+			Field_GROUP group = null;
+			if (field.m_type == FieldType.GROUP)
+				group = (Field_GROUP)field;
+			else if (field.m_type == FieldType.WEIGHT)
+				group = ((Field_WEIGHT)field).m_group;
+			else if (field.m_type == FieldType.ORDER)
+				group = ((Field_ORDER)field).m_group;
+			return group;
+		}
+
 		public static string EnumName(string table, string name)
 		{
 			return table + '_' + name;
@@ -161,7 +173,8 @@ namespace StaticDB_Maker
 
 	class ReferenceFinder
 	{
-		public Table m_startTable = null;
+		//public Table m_startTable = null;
+		public Field_REF m_startField = null;
 		public string m_targetTableName = "";
 		public string m_targetFieldName = "";
 		public OnFindArgs m_lastFindResult;
@@ -222,7 +235,7 @@ namespace StaticDB_Maker
 							loop = true;
 						}
 					}
-					m_startTable.m_refTables.Add(table.m_name);
+					m_startField.m_owner.m_refTables.Add(table.m_name);
 					m_lastFindResult.table = table;
 					m_lastFindResult.field = field;
 					m_lastFindResult.verifier = verifier;
@@ -232,7 +245,7 @@ namespace StaticDB_Maker
 				} // for
 			} // try
 			catch (ParseError e) {
-				string err = e.Message + "\n  " + (m_startTable==null ? "" : m_startTable.m_name);
+				string err = e.Message + "\n  " + (m_startField==null ? "" : m_startField.m_owner.m_name);
 				foreach (var s in refLog)
 					err += " -> " + s;
 				return err;
@@ -249,28 +262,28 @@ namespace StaticDB_Maker
 		{
 			OnFind = (ReferenceFinder.OnFindArgs args) =>
 			{
-				if (args.field.m_type == FieldType.GROUP) {
+				Field_GROUP group = Common.GetGroupInfo(args.field);
+				if (group != null) {
 					args.verifier.Verify(Table.State.Step5_Verified_GroupReferance);
-					var groups = ((Field_GROUP)args.field).m_groups;
 					uint groupID = 0;
 					bool isValidGroupID = false;
 					switch (m_ID.type) {
 						case Data.Type.UINT: {
 							groupID = (uint)m_ID.value;
-							isValidGroupID = groups.Contains(groupID);
+							isValidGroupID = group.m_groups.Contains(groupID);
 							break;
 						}
 						case Data.Type.STR: {
 							string enum_name;
-							var next_ref = Common.GetRefInfo(args.field);
+							var next_ref = Common.GetRefInfo(group);
 							if (next_ref != null)
 								enum_name = Common.EnumName(next_ref.m_refTable, "ID");
 							else
-								enum_name = Common.EnumName(args.table.m_name, args.field.m_name);
+								enum_name = Common.EnumName(args.table.m_name, group.m_name);
 							EnumInfo ei;
 							if (EnumInfo.Enums.TryGetValue(enum_name, out ei)) {
 								groupID = ei.NameToNum[m_ID.ToString()];
-								isValidGroupID = groups.Contains(groupID);
+								isValidGroupID = group.m_groups.Contains(groupID);
 							}
 							break;
 						}
@@ -281,8 +294,8 @@ namespace StaticDB_Maker
 							m_ID.ToString(), args.table.m_name));
 					}
 
+					m_startField.m_groupRef = group;
 					if (args.isLast) {
-						args.verifier.Verify(Table.State.Step4_Verified_NomalData);
 						m_result.type = Data.Type.UINT;
 						m_result.value = groupID;
 					}
@@ -538,6 +551,9 @@ namespace StaticDB_Maker
 	{
 		public string m_refTable = "";
 		public string m_refField = "";
+		public Field_GROUP m_groupRef = null;
+		public TableSchema.Field m_finalRef = null;
+
 		public Field_REF(string refTable, string refField = "")
 		{
 			m_type = FieldType.REF;
@@ -553,10 +569,12 @@ namespace StaticDB_Maker
 			Parse = (string src) =>
 			{
 				PullReferenceData reference = new PullReferenceData();
-				reference.m_startTable = m_owner;
+				reference.m_startField = this;
 				reference.m_targetTableName = m_refTable;
 				reference.m_targetFieldName = m_refField;
-				return reference.Parse(src);
+				var data = reference.Parse(src);
+				m_finalRef = reference.m_lastFindResult.field;
+				return data;
 			};
 			return "";
 		}

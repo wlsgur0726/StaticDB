@@ -47,6 +47,7 @@ namespace StaticDB_Maker
 						throw new Exception("build fail - " + table);
 				}
 				Generator.GenDBCode_CPP();
+				Generator.GenDBCode_CS();
 			}
 			catch (Exception e) {
 				Console.Error.WriteLine(e.ToString());

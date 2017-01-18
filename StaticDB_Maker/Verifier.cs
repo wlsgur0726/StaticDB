@@ -382,13 +382,18 @@ namespace StaticDB_Maker
 						continue;
 
 					ReferenceFinder reference = new ReferenceFinder();
-					reference.m_startTable = table;
+					reference.m_startField = refinfo;
 					reference.m_targetTableName = refinfo.m_refTable;
 					reference.m_targetFieldName = refinfo.m_refField;
 					string err = reference.Find();
 					if (err.Length > 0)
 						throw new ParseError(table.m_name, Config.FieldTypeRow, col, err);
-					field.TypeInfo = reference.m_lastFindResult.field.TypeInfo;
+
+					Field_GROUP group = Common.GetGroupInfo(reference.m_lastFindResult.field);
+					if (group == null)
+						field.TypeInfo = reference.m_lastFindResult.field.TypeInfo;
+					else
+						field.TypeInfo = group.TypeInfo;
 				}
 				return true;
 			}));
